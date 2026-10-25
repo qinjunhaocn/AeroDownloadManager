@@ -379,6 +379,7 @@ class DownloadManager extends ChangeNotifier {
     if (task.status == TaskStatus.completed) return;
     task.message = '';
     if (task.isTorrent) {
+      await torrents.remove(task, deleteFiles: false);
       task.status = TaskStatus.queued;
       start(task);
       return;

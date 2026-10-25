@@ -103,9 +103,13 @@ class _EditorPageState extends State<EditorPage> {
       if (_isEditing) {
         final task = _task!;
         final urlChanged = task.url != url;
+        final oldName = task.name;
+        final oldDirectory = task.directory;
         task.url = url;
         task.name = name.isEmpty ? task.name : sanitizeFileName(name);
         if (directory.isNotEmpty) task.directory = directory;
+        final locationChanged =
+            oldName != task.name || oldDirectory != task.directory;
         task.threads = _threads;
         task.speedLimit = _speedLimitKBps * 1024;
         task.algorithm = _algorithm;
@@ -116,7 +120,7 @@ class _EditorPageState extends State<EditorPage> {
         task.headers = _headers.text.trim();
         task.checksum = _checksum.text.trim();
         task.checksumType = _checksumType;
-        if (urlChanged) {
+        if (urlChanged || locationChanged) {
           task.segments.clear();
           task.downloaded = 0;
           task.total = 0;
@@ -124,7 +128,7 @@ class _EditorPageState extends State<EditorPage> {
           task.restartCount = 0;
           task.filePath = '';
           task.status = TaskStatus.paused;
-          task.message = '链接已修改，等待重新下载';
+          task.message = '链接或保存位置已修改，等待重新下载';
         }
         app.manager.saveNow();
         if (!mounted) return;

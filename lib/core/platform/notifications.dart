@@ -14,7 +14,7 @@ class NotificationService {
 
   Future<void> init() async {
     if (!Platform.isAndroid) return;
-    const android = AndroidInitializationSettings('@mipmap/ic_launcher');
+    const android = AndroidInitializationSettings('ic_stat_aero');
     try {
       await _plugin.initialize(
         settings: const InitializationSettings(android: android),
@@ -55,7 +55,6 @@ class NotificationService {
       progress: progress,
       ongoing: true,
       autoCancel: false,
-      icon: '@mipmap/ic_launcher',
     );
     final bodyParts = <String>[
       formatPercent(task.progress),
@@ -85,7 +84,6 @@ class NotificationService {
       importance: Importance.defaultImportance,
       priority: Priority.defaultPriority,
       autoCancel: true,
-      icon: '@mipmap/ic_launcher',
     );
     try {
       await _plugin.show(
@@ -108,7 +106,6 @@ class NotificationService {
       importance: Importance.defaultImportance,
       priority: Priority.defaultPriority,
       autoCancel: true,
-      icon: '@mipmap/ic_launcher',
     );
     try {
       await _plugin.show(

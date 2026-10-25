@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -782,6 +784,10 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _openFile(DownloadTask task) async {
     if (task.filePath.isEmpty) return;
+    if (FileSystemEntity.isDirectorySync(task.filePath)) {
+      await _openFolder(task);
+      return;
+    }
     final ok = await FileOpener.openFile(task.filePath);
     if (!ok && mounted) {
       ScaffoldMessenger.of(context)
@@ -861,7 +867,7 @@ class _HomePageState extends State<HomePage> {
           ScaffoldMessenger.of(context)
               .showSnackBar(const SnackBar(content: Text('链接已复制')));
         },
-        onEdit: task.isTorrent
+        onEdit: task.isTorrent || task.isFinished
             ? null
             : () async {
                 navigator.pop();

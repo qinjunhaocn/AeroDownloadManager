@@ -46,7 +46,10 @@ class TorrentEngine {
       return;
     }
     if (existing?.task != null) {
-      return;
+      if (existing!.task!.state == TaskState.running) {
+        return;
+      }
+      await remove(task, deleteFiles: false);
     }
     if (existing?.metadata != null) {
       // A paused magnet task: throw away the stopped metadata session and
@@ -93,6 +96,7 @@ class TorrentEngine {
       return;
     }
     runtime.cancelTimer();
+    runtime.cancelMetadataTimeout();
     try {
       runtime.task?.pause();
     } catch (_) {
@@ -121,6 +125,7 @@ class TorrentEngine {
     final runtime = _runtimes.remove(task.id);
     if (runtime != null) {
       runtime.cancelTimer();
+      runtime.cancelMetadataTimeout();
       await runtime.publicTrackerSub?.cancel();
       try {
         await runtime.metadata?.stop();
@@ -378,6 +383,10 @@ class TorrentEngine {
         }
       }
     });
+    runtime.startMetadataTimeout(const Duration(minutes: 6), () {
+      if (runtime.disposed || runtime.metadata == null) return;
+      _fail(task, '获取种子元数据超时，请检查网络/DHT 或改用 .torrent 文件');
+    });
   }
 
   Future<void> _onMetadataComplete(
@@ -394,6 +403,7 @@ class TorrentEngine {
       );
       await File(path).writeAsBytes(data, flush: true);
       final model = await Torrent.parseFromBytes(Uint8List.fromList(data));
+      runtime.cancelMetadataTimeout();
       runtime.cancelTimer();
       await runtime.publicTrackerSub?.cancel();
       try {
@@ -504,7 +514,18 @@ class _TorrentRuntime {
   EventsListener<TorrentAnnounceEvent>? trackerListener;
   StreamSubscription<List<Uri>>? publicTrackerSub;
   Timer? timer;
+  Timer? metadataTimer;
   bool disposed = false;
+
+  void startMetadataTimeout(Duration duration, void Function() onTimeout) {
+    metadataTimer?.cancel();
+    metadataTimer = Timer(duration, onTimeout);
+  }
+
+  void cancelMetadataTimeout() {
+    metadataTimer?.cancel();
+    metadataTimer = null;
+  }
 
   void startTimer({required void Function() onTick}) {
     timer?.cancel();

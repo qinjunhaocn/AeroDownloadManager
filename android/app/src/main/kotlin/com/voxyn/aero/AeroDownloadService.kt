@@ -37,7 +37,7 @@ class AeroDownloadService : Service() {
         val notification: Notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle("Aero")
             .setContentText("下载服务运行中")
-            .setSmallIcon(android.R.drawable.stat_sys_download)
+            .setSmallIcon(R.drawable.ic_stat_aero)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
             .setShowWhen(false)
@@ -54,11 +54,15 @@ class AeroDownloadService : Service() {
         private const val NOTIFICATION_ID = 1001
 
         fun start(context: Context) {
-            val intent = Intent(context, AeroDownloadService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                ContextCompat.startForegroundService(context, intent)
-            } else {
-                context.startService(intent)
+            try {
+                val intent = Intent(context, AeroDownloadService::class.java)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    ContextCompat.startForegroundService(context, intent)
+                } else {
+                    context.startService(intent)
+                }
+            } catch (_: Throwable) {
+                // Downloads still continue while the app is in the foreground.
             }
         }
 
