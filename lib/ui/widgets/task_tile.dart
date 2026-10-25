@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/models/download_task.dart';
 import '../../utils/file_types.dart';
 import '../../utils/formatters.dart';
+import '../../utils/haptics.dart';
 
 class TaskTile extends StatelessWidget {
   const TaskTile({
@@ -233,6 +234,7 @@ class TaskTile extends StatelessWidget {
     return PopupMenuButton<String>(
       tooltip: '更多',
       iconSize: 20,
+      onOpened: Haptics.select,
       onSelected: onMenuSelected,
       itemBuilder: (context) => [
         const PopupMenuItem(value: 'details', child: Text('详情')),

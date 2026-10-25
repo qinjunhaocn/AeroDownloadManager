@@ -19,27 +19,30 @@ class TaskActions {
     AppState app,
     DownloadTask task,
   ) async {
-    Haptics.tap();
     switch (task.status) {
       case TaskStatus.completed:
         await openFile(context, task);
         break;
       case TaskStatus.error:
+        Haptics.tap();
         await app.manager.retry(task);
         break;
       case TaskStatus.paused:
       case TaskStatus.queued:
+        Haptics.tap();
         app.manager.start(task);
         break;
       case TaskStatus.connecting:
       case TaskStatus.downloading:
       case TaskStatus.waiting:
+        Haptics.tap();
         await app.manager.pause(task);
         break;
     }
   }
 
   static Future<void> openFile(BuildContext context, DownloadTask task) async {
+    Haptics.tap();
     if (task.filePath.isEmpty) return;
     if (FileSystemEntity.isDirectorySync(task.filePath)) {
       await openFolder(context, task);
@@ -56,6 +59,7 @@ class TaskActions {
     BuildContext context,
     DownloadTask task,
   ) async {
+    Haptics.tap();
     if (task.filePath.isEmpty) return;
     final ok = await FileOpener.openFolder(task.filePath);
     if (!ok && context.mounted) {
@@ -116,11 +120,17 @@ class TaskActions {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.pop(context, false),
+            onPressed: () {
+              Haptics.select();
+              Navigator.pop(context, false);
+            },
             child: const Text('取消'),
           ),
           FilledButton(
-            onPressed: () => Navigator.pop(context, true),
+            onPressed: () {
+              Haptics.select();
+              Navigator.pop(context, true);
+            },
             child: const Text('删除'),
           ),
         ],
@@ -148,6 +158,7 @@ class TaskActions {
         onEdit: task.isTorrent || task.isFinished
             ? null
             : () async {
+                Haptics.select();
                 navigator.pop();
                 if (task.status.isActive) await app.manager.pause(task);
                 if (!context.mounted) return;
@@ -158,6 +169,7 @@ class TaskActions {
                 );
               },
         onToggle: () async {
+          Haptics.tap();
           navigator.pop();
           if (task.status.isActive) {
             await app.manager.pause(task);
@@ -166,6 +178,7 @@ class TaskActions {
           }
         },
         onRetry: () async {
+          Haptics.tap();
           navigator.pop();
           await app.manager.retry(task);
         },

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../utils/haptics.dart';
+
 /// Shows a single-field dialog whose [TextEditingController] is owned by the
 /// dialog route itself.
 ///
@@ -70,6 +72,7 @@ class _AeroTextInputDialogState extends State<_AeroTextInputDialog> {
   }
 
   void _submit() {
+    Haptics.select();
     Navigator.of(context).pop(_controller.text.trim());
   }
 
@@ -91,7 +94,10 @@ class _AeroTextInputDialogState extends State<_AeroTextInputDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () {
+            Haptics.select();
+            Navigator.of(context).pop();
+          },
           child: Text(widget.cancelLabel),
         ),
         FilledButton(onPressed: _submit, child: Text(widget.confirmLabel)),

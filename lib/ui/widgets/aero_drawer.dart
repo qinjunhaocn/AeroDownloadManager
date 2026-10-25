@@ -18,7 +18,15 @@ class AeroDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final app = context.watch<AppState>();
+    final app = context.read<AppState>();
+    final info = context.select<AppState, _DrawerInfo>(
+      (state) => _DrawerInfo(
+        speed: state.manager.totalSpeed,
+        active: state.manager.activeCount,
+        queued: state.manager.queuedCount,
+        category: state.categoryFilter,
+      ),
+    );
     final scheme = Theme.of(context).colorScheme;
     return Drawer(
       width: 300,
@@ -60,6 +68,8 @@ class AeroDrawer extends StatelessWidget {
                       children: [
                         Text(
                           kAppName,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.headlineSmall
                               ?.copyWith(
                                 fontWeight: FontWeight.w700,
@@ -68,8 +78,9 @@ class AeroDrawer extends StatelessWidget {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '${app.manager.activeCount} 进行中 · '
-                          '${app.manager.queuedCount} 排队',
+                          '${info.active} 进行中 · ${info.queued} 排队',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.labelSmall
                               ?.copyWith(
                                 color: scheme.onPrimaryContainer.withValues(
@@ -81,25 +92,37 @@ class AeroDrawer extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        formatSpeed(app.manager.totalSpeed),
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: scheme.onPrimaryContainer,
-                        ),
-                      ),
-                      Text(
-                        '总速度',
-                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: scheme.onPrimaryContainer.withValues(
-                            alpha: 0.72,
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 104),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            formatSpeed(info.speed),
+                            maxLines: 1,
+                            softWrap: false,
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                  color: scheme.onPrimaryContainer,
+                                ),
                           ),
                         ),
-                      ),
-                    ],
+                        Text(
+                          '总速度',
+                          maxLines: 1,
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(
+                                color: scheme.onPrimaryContainer.withValues(
+                                  alpha: 0.72,
+                                ),
+                              ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -121,7 +144,7 @@ class AeroDrawer extends StatelessWidget {
                   ChoiceChip(
                     label: const Text('全部'),
                     showCheckmark: false,
-                    selected: app.categoryFilter == null,
+                    selected: info.category == null,
                     onSelected: (_) {
                       Haptics.select();
                       app.setCategory(null);
@@ -132,7 +155,7 @@ class AeroDrawer extends StatelessWidget {
                       label: Text(category.label),
                       avatar: Icon(category.icon, size: 16),
                       showCheckmark: false,
-                      selected: app.categoryFilter == category,
+                      selected: info.category == category,
                       onSelected: (_) {
                         Haptics.select();
                         app.setCategory(category);
@@ -168,4 +191,29 @@ class AeroDrawer extends StatelessWidget {
       ),
     );
   }
+}
+
+class _DrawerInfo {
+  const _DrawerInfo({
+    required this.speed,
+    required this.active,
+    required this.queued,
+    required this.category,
+  });
+
+  final double speed;
+  final int active;
+  final int queued;
+  final DownloadCategory? category;
+
+  @override
+  bool operator ==(Object other) =>
+      other is _DrawerInfo &&
+      other.speed == speed &&
+      other.active == active &&
+      other.queued == queued &&
+      other.category == category;
+
+  @override
+  int get hashCode => Object.hash(speed, active, queued, category);
 }

@@ -35,28 +35,33 @@ class SettingsPage extends StatelessWidget {
                 segments: const [
                   ButtonSegment(
                     value: ThemeMode.system,
-                    icon: Icon(Icons.brightness_auto_rounded),
-                    label: Text('跟随系统'),
+                    label: Text('系统'),
+                    tooltip: '跟随系统',
                   ),
-                  ButtonSegment(
-                    value: ThemeMode.light,
-                    icon: Icon(Icons.light_mode_rounded),
-                    label: Text('浅色'),
-                  ),
-                  ButtonSegment(
-                    value: ThemeMode.dark,
-                    icon: Icon(Icons.dark_mode_rounded),
-                    label: Text('深色'),
-                  ),
+                  ButtonSegment(value: ThemeMode.light, label: Text('浅色')),
+                  ButtonSegment(value: ThemeMode.dark, label: Text('深色')),
                 ],
+                showSelectedIcon: false,
+                style: const ButtonStyle(
+                  visualDensity: VisualDensity.compact,
+                  padding: WidgetStatePropertyAll(
+                    EdgeInsets.symmetric(horizontal: 6, vertical: 10),
+                  ),
+                ),
                 selected: {settings.themeMode},
-                onSelectionChanged: (value) => state.setThemeMode(value.first),
+                onSelectionChanged: (value) {
+                  Haptics.select();
+                  state.setThemeMode(value.first);
+                },
               ),
               const SizedBox(height: 6),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 value: settings.monet,
-                onChanged: state.setMonet,
+                onChanged: (value) {
+                  Haptics.select();
+                  state.setMonet(value);
+                },
                 title: const Text('莫奈取色'),
                 subtitle: const Text(
                   '使用系统壁纸/主题色生成 Material You 配色（Android 12+、Windows、Linux）',
@@ -76,8 +81,10 @@ class SettingsPage extends StatelessWidget {
                           color: item.color,
                           name: item.name,
                           selected: settings.seedColor == item.color.toARGB32(),
-                          onTap: () =>
-                              state.setSeedColor(item.color.toARGB32()),
+                          onTap: () {
+                            Haptics.select();
+                            state.setSeedColor(item.color.toARGB32());
+                          },
                         ),
                     ],
                   ),
@@ -94,6 +101,7 @@ class SettingsPage extends StatelessWidget {
                   contentPadding: EdgeInsets.zero,
                   value: settings.haptics,
                   onChanged: (value) async {
+                    Haptics.select();
                     await state.updateSettings(
                       settings.copyWith(haptics: value),
                     );
@@ -200,31 +208,40 @@ class SettingsPage extends StatelessWidget {
                   ButtonSegment(value: 1, label: Text('智能')),
                 ],
                 selected: {settings.algorithm},
-                onSelectionChanged: (value) => state.updateSettings(
-                  settings.copyWith(algorithm: value.first),
-                ),
+                onSelectionChanged: (value) {
+                  Haptics.select();
+                  state.updateSettings(
+                    settings.copyWith(algorithm: value.first),
+                  );
+                },
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 value: settings.preallocate,
-                onChanged: (value) =>
-                    state.updateSettings(settings.copyWith(preallocate: value)),
+                onChanged: (value) {
+                  Haptics.select();
+                  state.updateSettings(settings.copyWith(preallocate: value));
+                },
                 title: const Text('预分配磁盘空间'),
                 subtitle: const Text('大文件多线程下载前预留空间'),
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 value: settings.autoStart,
-                onChanged: (value) =>
-                    state.updateSettings(settings.copyWith(autoStart: value)),
+                onChanged: (value) {
+                  Haptics.select();
+                  state.updateSettings(settings.copyWith(autoStart: value));
+                },
                 title: const Text('启动后自动开始'),
                 subtitle: const Text('打开应用时继续上次未完成的任务'),
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 value: settings.autoRetry,
-                onChanged: (value) =>
-                    state.updateSettings(settings.copyWith(autoRetry: value)),
+                onChanged: (value) {
+                  Haptics.select();
+                  state.updateSettings(settings.copyWith(autoRetry: value));
+                },
                 title: const Text('错误自动重试'),
                 subtitle: const Text('连接中断后按退避时间自动重试'),
               ),
@@ -299,8 +316,10 @@ class SettingsPage extends StatelessWidget {
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 value: settings.wifiOnly,
-                onChanged: (value) =>
-                    state.updateSettings(settings.copyWith(wifiOnly: value)),
+                onChanged: (value) {
+                  Haptics.select();
+                  state.updateSettings(settings.copyWith(wifiOnly: value));
+                },
                 title: const Text('仅 Wi-Fi 下载'),
                 subtitle: const Text('移动网络下自动暂停，连接 Wi-Fi 后继续'),
               ),
@@ -323,18 +342,22 @@ class SettingsPage extends StatelessWidget {
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 value: settings.clipboardWatch,
-                onChanged: (value) => state.updateSettings(
-                  settings.copyWith(clipboardWatch: value),
-                ),
+                onChanged: (value) {
+                  Haptics.select();
+                  state.updateSettings(
+                    settings.copyWith(clipboardWatch: value),
+                  );
+                },
                 title: const Text('监听剪贴板链接'),
                 subtitle: const Text('切换回应用时提示下载剪贴板中的链接'),
               ),
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 value: settings.confirmDelete,
-                onChanged: (value) => state.updateSettings(
-                  settings.copyWith(confirmDelete: value),
-                ),
+                onChanged: (value) {
+                  Haptics.select();
+                  state.updateSettings(settings.copyWith(confirmDelete: value));
+                },
                 title: const Text('删除前确认'),
               ),
             ],
@@ -371,6 +394,7 @@ class SettingsPage extends StatelessWidget {
                     IconButton(
                       tooltip: '恢复默认',
                       onPressed: () async {
+                        Haptics.select();
                         final path =
                             await DownloadManager.platformDefaultDirectory();
                         await state.updateSettings(
@@ -399,7 +423,10 @@ class SettingsPage extends StatelessWidget {
                 leading: const Icon(Icons.code_rounded),
                 title: const Text('GitHub 仓库'),
                 subtitle: const Text(kRepoUrl),
-                onTap: () => launchUrl(Uri.parse(kRepoUrl)),
+                onTap: () {
+                  Haptics.select();
+                  launchUrl(Uri.parse(kRepoUrl));
+                },
               ),
               const Padding(
                 padding: EdgeInsets.symmetric(horizontal: 4, vertical: 8),
@@ -424,6 +451,7 @@ class SettingsPage extends StatelessWidget {
     required ValueChanged<String> onSaved,
     int maxLines = 1,
   }) async {
+    Haptics.select();
     final result = await showAeroTextInputDialog(
       context,
       title: title,
@@ -526,6 +554,7 @@ class _SliderTile extends StatelessWidget {
           max: max,
           divisions: divisions,
           onChanged: onChanged,
+          onChangeEnd: (_) => Haptics.select(),
         ),
       ],
     );

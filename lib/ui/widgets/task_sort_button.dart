@@ -36,6 +36,7 @@ class TaskSortButton extends StatelessWidget {
       tooltip: '排序',
       icon: const Icon(Icons.sort_rounded),
       initialValue: app.sort,
+      onOpened: Haptics.select,
       onSelected: (value) {
         Haptics.select();
         app.setSort(value);

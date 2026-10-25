@@ -164,7 +164,10 @@ class _QueuePageState extends State<QueuePage> {
         actions: [
           IconButton(
             tooltip: '全选',
-            onPressed: () => app.selectAll(app.queueTasks),
+            onPressed: () {
+              Haptics.select();
+              app.selectAll(app.queueTasks);
+            },
             icon: const Icon(Icons.select_all_rounded),
           ),
           IconButton(
@@ -206,6 +209,7 @@ class _QueuePageState extends State<QueuePage> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () {
+            Haptics.select();
             setState(() => _searching = false);
             _searchController.clear();
             app.setSearch('');
@@ -228,6 +232,7 @@ class _QueuePageState extends State<QueuePage> {
             IconButton(
               icon: const Icon(Icons.clear_rounded),
               onPressed: () {
+                Haptics.select();
                 _searchController.clear();
                 app.setSearch('');
               },
@@ -241,7 +246,10 @@ class _QueuePageState extends State<QueuePage> {
         builder: (context) => IconButton(
           tooltip: '菜单',
           icon: const Icon(Icons.menu_rounded),
-          onPressed: () => Scaffold.of(context).openDrawer(),
+          onPressed: () {
+            Haptics.select();
+            Scaffold.of(context).openDrawer();
+          },
         ),
       ),
       title: Column(
@@ -259,12 +267,16 @@ class _QueuePageState extends State<QueuePage> {
       actions: [
         IconButton(
           tooltip: '搜索',
-          onPressed: () => setState(() => _searching = true),
+          onPressed: () {
+            Haptics.select();
+            setState(() => _searching = true);
+          },
           icon: const Icon(Icons.search_rounded),
         ),
         TaskSortButton(app: app),
         PopupMenuButton<String>(
           tooltip: '更多',
+          onOpened: Haptics.select,
           onSelected: (value) {
             Haptics.tap();
             if (value == 'start') app.manager.startAll();

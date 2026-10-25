@@ -136,6 +136,7 @@ class _CompletedPageState extends State<CompletedPage> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () {
+            Haptics.select();
             setState(() => _searching = false);
             _searchController.clear();
             app.setSearch('');
@@ -158,6 +159,7 @@ class _CompletedPageState extends State<CompletedPage> {
             IconButton(
               icon: const Icon(Icons.clear_rounded),
               onPressed: () {
+                Haptics.select();
                 _searchController.clear();
                 app.setSearch('');
               },
@@ -171,7 +173,10 @@ class _CompletedPageState extends State<CompletedPage> {
         builder: (context) => IconButton(
           tooltip: '菜单',
           icon: const Icon(Icons.menu_rounded),
-          onPressed: () => Scaffold.of(context).openDrawer(),
+          onPressed: () {
+            Haptics.select();
+            Scaffold.of(context).openDrawer();
+          },
         ),
       ),
       title: Column(
@@ -189,7 +194,10 @@ class _CompletedPageState extends State<CompletedPage> {
       actions: [
         IconButton(
           tooltip: '搜索',
-          onPressed: () => setState(() => _searching = true),
+          onPressed: () {
+            Haptics.select();
+            setState(() => _searching = true);
+          },
           icon: const Icon(Icons.search_rounded),
         ),
         TaskSortButton(app: app),

@@ -211,6 +211,7 @@ class _BrowserPageState extends State<BrowserPage> {
             onPressed: () => _go(_urlController.text),
           ),
           PopupMenuButton<String>(
+            onOpened: Haptics.select,
             onSelected: (value) async {
               Haptics.select();
               final home = context.read<AppState>().settings.browserHome;

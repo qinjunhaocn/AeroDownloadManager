@@ -82,6 +82,7 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   Future<void> _pickDirectory() async {
+    Haptics.select();
     try {
       final path = await FilePicker.getDirectoryPath(dialogTitle: '选择下载目录');
       if (path != null && path.isNotEmpty) {
@@ -311,8 +312,10 @@ class _EditorPageState extends State<EditorPage> {
                     ButtonSegment(value: 1, label: Text('智能')),
                   ],
                   selected: {_algorithm},
-                  onSelectionChanged: (value) =>
-                      setState(() => _algorithm = value.first),
+                  onSelectionChanged: (value) {
+                    Haptics.select();
+                    setState(() => _algorithm = value.first);
+                  },
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -388,8 +391,10 @@ class _EditorPageState extends State<EditorPage> {
                           child: Text('SHA-256'),
                         ),
                       ],
-                      onChanged: (value) =>
-                          setState(() => _checksumType = value ?? 'md5'),
+                      onChanged: (value) {
+                        Haptics.select();
+                        setState(() => _checksumType = value ?? 'md5');
+                      },
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -409,7 +414,10 @@ class _EditorPageState extends State<EditorPage> {
             if (!_isEditing)
               SwitchListTile(
                 value: _startNow,
-                onChanged: (value) => setState(() => _startNow = value),
+                onChanged: (value) {
+                  Haptics.select();
+                  setState(() => _startNow = value);
+                },
                 title: const Text('保存后立即开始'),
                 contentPadding: EdgeInsets.zero,
               ),
@@ -515,6 +523,7 @@ class _LabeledSlider extends StatelessWidget {
           max: max,
           divisions: divisions,
           onChanged: onChanged,
+          onChangeEnd: (_) => Haptics.select(),
         ),
       ],
     );
