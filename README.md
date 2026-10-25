@@ -48,6 +48,7 @@ lib/
 android/          Kotlin 前台服务 + 分享/打开意图桥
 linux/ windows/   桌面 runner
 third_party/dart_ipify/  兼容 Dart 3 的 dart_ipify 本地替代（dtorrent_task 依赖）
+third_party/flutter_inappwebview_android/  适配 AGP 9 的本地补丁（proguard 文件）
 ```
 
 ## 本地开发

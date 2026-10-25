@@ -35,6 +35,8 @@ dependencies:
 dependency_overrides:
   dart_ipify:
     path: third_party/dart_ipify
+  flutter_inappwebview_android:
+    path: third_party/flutter_inappwebview_android
 
 dev_dependencies:
   flutter_test:

@@ -19,9 +19,6 @@ jobs:
   build:
     name: Build debug APK
     runs-on: ubuntu-latest
-    env:
-      ANDROID_HOME: /usr/local/lib/android/sdk
-      ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -32,6 +29,9 @@ jobs:
           distribution: temurin
           java-version: '17'
 
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
@@ -39,17 +39,8 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Configure Flutter & Android SDK
-        run: |
-          flutter config --no-analytics
-          if [ -d "$ANDROID_SDK_ROOT" ]; then
-            flutter config --android-sdk "$ANDROID_SDK_ROOT"
-          else
-            echo "Android SDK not found at $ANDROID_SDK_ROOT"
-            ls -la /usr/local/lib/android || true
-          fi
-          flutter --version
-          flutter doctor -v || true
+      - name: Flutter doctor
+        run: flutter --version && flutter doctor -v
 
       - name: Install dependencies
         run: flutter pub get
