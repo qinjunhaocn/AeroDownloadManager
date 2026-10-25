@@ -1,0 +1,6 @@
+name: dart_ipify
+description: Minimal local fork of dart_ipify with Dart 3 SDK support (only Ipify.ipv4/ipv6 used by dtorrent_task).
+version: 1.1.1
+publish_to: 'none'
+environment:
+  sdk: '>=3.0.0 <4.0.0'
