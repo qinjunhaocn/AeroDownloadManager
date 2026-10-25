@@ -231,21 +231,71 @@ class TaskTile extends StatelessWidget {
   }
 
   Widget _menu(BuildContext context) {
-    return PopupMenuButton<String>(
-      tooltip: '更多',
-      iconSize: 20,
-      onOpened: Haptics.select,
-      onSelected: onMenuSelected,
-      itemBuilder: (context) => [
-        const PopupMenuItem(value: 'details', child: Text('详情')),
-        const PopupMenuItem(value: 'open', child: Text('打开文件')),
-        const PopupMenuItem(value: 'folder', child: Text('打开所在文件夹')),
-        const PopupMenuItem(value: 'copy', child: Text('复制链接')),
+    final scheme = Theme.of(context).colorScheme;
+    return MenuAnchor(
+      consumeOutsideTap: false,
+      style: const MenuStyle(alignment: Alignment.bottomRight),
+      menuChildren: [
+        MenuItemButton(
+          onPressed: () {
+            Haptics.select();
+            onMenuSelected('details');
+          },
+          leadingIcon: const Icon(Icons.info_outline_rounded),
+          child: const Text('详情'),
+        ),
+        MenuItemButton(
+          onPressed: () {
+            Haptics.select();
+            onMenuSelected('open');
+          },
+          leadingIcon: const Icon(Icons.open_in_new_rounded),
+          child: const Text('打开文件'),
+        ),
+        MenuItemButton(
+          onPressed: () {
+            Haptics.select();
+            onMenuSelected('folder');
+          },
+          leadingIcon: const Icon(Icons.folder_open_rounded),
+          child: const Text('打开所在文件夹'),
+        ),
+        MenuItemButton(
+          onPressed: () {
+            Haptics.select();
+            onMenuSelected('copy');
+          },
+          leadingIcon: const Icon(Icons.link_rounded),
+          child: const Text('复制链接'),
+        ),
         if (task.status == TaskStatus.error)
-          const PopupMenuItem(value: 'retry', child: Text('重试')),
-        const PopupMenuDivider(),
-        const PopupMenuItem(value: 'delete', child: Text('删除')),
+          MenuItemButton(
+            onPressed: () {
+              Haptics.select();
+              onMenuSelected('retry');
+            },
+            leadingIcon: const Icon(Icons.refresh_rounded),
+            child: const Text('重试'),
+          ),
+        const Divider(height: 1),
+        MenuItemButton(
+          onPressed: () {
+            Haptics.select();
+            onMenuSelected('delete');
+          },
+          leadingIcon: Icon(Icons.delete_outline_rounded, color: scheme.error),
+          child: Text('删除', style: TextStyle(color: scheme.error)),
+        ),
       ],
+      builder: (context, controller, child) => IconButton(
+        tooltip: '更多',
+        iconSize: 20,
+        icon: const Icon(Icons.more_vert_rounded),
+        onPressed: () {
+          Haptics.select();
+          controller.isOpen ? controller.close() : controller.open();
+        },
+      ),
     );
   }
 }

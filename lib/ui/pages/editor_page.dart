@@ -381,20 +381,48 @@ class _EditorPageState extends State<EditorPage> {
               children: [
                 Row(
                   children: [
-                    DropdownButton<String>(
-                      value: _checksumType,
-                      items: const [
-                        DropdownMenuItem(value: 'md5', child: Text('MD5')),
-                        DropdownMenuItem(value: 'sha1', child: Text('SHA-1')),
-                        DropdownMenuItem(
-                          value: 'sha256',
-                          child: Text('SHA-256'),
-                        ),
+                    MenuAnchor(
+                      consumeOutsideTap: false,
+                      style: const MenuStyle(alignment: Alignment.bottomLeft),
+                      menuChildren: [
+                        for (final entry in const {
+                          'md5': 'MD5',
+                          'sha1': 'SHA-1',
+                          'sha256': 'SHA-256',
+                        }.entries)
+                          MenuItemButton(
+                            onPressed: () {
+                              Haptics.select();
+                              setState(() => _checksumType = entry.key);
+                            },
+                            leadingIcon: _checksumType == entry.key
+                                ? const Icon(Icons.check_rounded, size: 18)
+                                : const SizedBox(width: 18),
+                            child: Text(entry.value),
+                          ),
                       ],
-                      onChanged: (value) {
-                        Haptics.select();
-                        setState(() => _checksumType = value ?? 'md5');
-                      },
+                      builder: (context, controller, child) => OutlinedButton(
+                        onPressed: () {
+                          Haptics.select();
+                          controller.isOpen
+                              ? controller.close()
+                              : controller.open();
+                        },
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              const {
+                                    'md5': 'MD5',
+                                    'sha1': 'SHA-1',
+                                    'sha256': 'SHA-256',
+                                  }[_checksumType] ??
+                                  'MD5',
+                            ),
+                            const Icon(Icons.arrow_drop_down_rounded),
+                          ],
+                        ),
+                      ),
                     ),
                     const SizedBox(width: 12),
                     Expanded(

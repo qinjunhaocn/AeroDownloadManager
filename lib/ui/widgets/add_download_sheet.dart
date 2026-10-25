@@ -1,26 +1,36 @@
+import 'dart:async';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/engine/link_inspector.dart';
 import '../../state/app_state.dart';
 import '../../utils/haptics.dart';
+import '../pages/browser_page.dart';
 import '../pages/editor_page.dart';
 import 'text_input_dialog.dart';
 
-Future<void> showAddDownloadSheet(BuildContext context, {String? initialUrl}) {
+Future<void> showAddDownloadSheet(
+  BuildContext context, {
+  String? initialUrl,
+  bool forceDownload = false,
+}) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (context) => _AddDownloadSheet(initialUrl: initialUrl),
+    builder: (context) =>
+        _AddDownloadSheet(initialUrl: initialUrl, forceDownload: forceDownload),
   );
 }
 
 class _AddDownloadSheet extends StatefulWidget {
-  const _AddDownloadSheet({this.initialUrl});
+  const _AddDownloadSheet({this.initialUrl, this.forceDownload = false});
 
   final String? initialUrl;
+  final bool forceDownload;
 
   @override
   State<_AddDownloadSheet> createState() => _AddDownloadSheetState();
@@ -32,20 +42,103 @@ class _AddDownloadSheetState extends State<_AddDownloadSheet> {
   final _formKey = GlobalKey<FormState>();
   bool _busy = false;
 
+  bool _checking = false;
+  LinkKind? _linkKind;
+  String? _inspectionMessage;
+  Timer? _inspectDebounce;
+  int _inspectSeq = 0;
+  String _lastUrlText = '';
+
   @override
   void initState() {
     super.initState();
     _urlController = TextEditingController(text: widget.initialUrl ?? '');
+    _lastUrlText = _urlController.text;
+    if (widget.forceDownload) {
+      _linkKind = LinkKind.download;
+    }
+    _urlController.addListener(_onUrlChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _urlFocus.requestFocus();
+      if (!mounted) return;
+      _urlFocus.requestFocus();
+      if (!widget.forceDownload) {
+        _scheduleInspect(_urlController.text);
+      }
     });
   }
 
   @override
   void dispose() {
+    _inspectDebounce?.cancel();
+    _urlController.removeListener(_onUrlChanged);
     _urlController.dispose();
     _urlFocus.dispose();
     super.dispose();
+  }
+
+  void _onUrlChanged() {
+    final text = _urlController.text;
+    // TextEditingController also notifies for selection/cursor changes.
+    if (text == _lastUrlText) return;
+    _lastUrlText = text;
+    _scheduleInspect(text);
+  }
+
+  void _scheduleInspect(String value) {
+    _inspectDebounce?.cancel();
+    final seq = ++_inspectSeq;
+    final text = value.trim();
+    if (!mounted) return;
+    if (text.isEmpty) {
+      setState(() {
+        _checking = false;
+        _linkKind = null;
+        _inspectionMessage = null;
+      });
+      return;
+    }
+    setState(() {
+      _checking = true;
+      _linkKind = null;
+      _inspectionMessage = null;
+    });
+    _inspectDebounce = Timer(const Duration(milliseconds: 350), () async {
+      if (!mounted) return;
+      final settings = context.read<AppState>().settings;
+      final result = await LinkInspector.inspect(
+        text,
+        userAgent: settings.userAgent,
+        proxy: settings.proxy,
+      );
+      if (!mounted || seq != _inspectSeq) return;
+      setState(() {
+        _checking = false;
+        _linkKind = result.kind;
+        _inspectionMessage = result.message;
+      });
+    });
+  }
+
+  bool get _isBrowserLink => !_checking && _linkKind == LinkKind.browser;
+
+  void _primaryAction() {
+    if (_busy || _checking) return;
+    if (_isBrowserLink) {
+      _openInBrowser();
+      return;
+    }
+    _start();
+  }
+
+  void _openInBrowser() {
+    final value = _urlController.text.trim();
+    if (value.isEmpty) return;
+    Haptics.tap();
+    final navigator = Navigator.of(context);
+    navigator.pop();
+    navigator.push(
+      MaterialPageRoute<void>(builder: (_) => BrowserPage(initialUrl: value)),
+    );
   }
 
   Future<void> _paste() async {
@@ -68,6 +161,8 @@ class _AddDownloadSheetState extends State<_AddDownloadSheet> {
       final value = _urlController.text.trim();
       if (value.toLowerCase().startsWith('magnet:')) {
         await context.read<AppState>().manager.addMagnet(url: value);
+      } else if (_linkKind == LinkKind.torrent) {
+        await context.read<AppState>().manager.addTorrentUrl(url: value);
       } else {
         await context.read<AppState>().manager.addHttp(url: value);
       }
@@ -140,6 +235,52 @@ class _AddDownloadSheetState extends State<_AddDownloadSheet> {
     );
   }
 
+  Widget _inspectionWidget(ColorScheme scheme) {
+    if (_checking) {
+      return Row(
+        key: const ValueKey('checking'),
+        children: [
+          const SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(strokeWidth: 2),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            '正在检测链接类型…',
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: scheme.onSurfaceVariant),
+          ),
+        ],
+      );
+    }
+    final message = _inspectionMessage;
+    if (message == null) return const SizedBox.shrink();
+    final icon = switch (_linkKind) {
+      LinkKind.browser => Icons.public_rounded,
+      LinkKind.download => Icons.download_done_rounded,
+      LinkKind.torrent => Icons.hub_outlined,
+      _ => Icons.help_outline_rounded,
+    };
+    final color = _linkKind == LinkKind.browser
+        ? scheme.primary
+        : scheme.onSurfaceVariant;
+    return Row(
+      key: ValueKey(message),
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            message,
+            style: Theme.of(context).textTheme.bodySmall
+                ?.copyWith(color: color),
+          ),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -174,7 +315,7 @@ class _AddDownloadSheetState extends State<_AddDownloadSheet> {
                 maxLines: 3,
                 keyboardType: TextInputType.url,
                 textInputAction: TextInputAction.done,
-                onFieldSubmitted: (_) => _start(),
+                onFieldSubmitted: (_) => _primaryAction(),
                 decoration: InputDecoration(
                   hintText: '粘贴 http(s) 链接或 magnet 链接',
                   prefixIcon: const Icon(Icons.link_rounded),
@@ -196,11 +337,38 @@ class _AddDownloadSheetState extends State<_AddDownloadSheet> {
                   return null;
                 },
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 8),
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 160),
+                child: _inspectionWidget(scheme),
+              ),
+              const SizedBox(height: 10),
               FilledButton.icon(
-                onPressed: _busy ? null : _start,
-                icon: const Icon(Icons.download_rounded),
-                label: Text(_busy ? '正在创建…' : '开始下载'),
+                onPressed: _busy || _checking
+                    ? null
+                    : (_isBrowserLink ? _openInBrowser : _start),
+                icon: _checking
+                    ? const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : Icon(
+                        _isBrowserLink
+                            ? Icons.public_rounded
+                            : Icons.download_rounded,
+                      ),
+                label: Text(
+                  _busy
+                      ? '正在创建…'
+                      : _checking
+                      ? '正在检测链接…'
+                      : _isBrowserLink
+                      ? '在浏览器打开'
+                      : _linkKind == LinkKind.torrent
+                      ? '添加种子任务'
+                      : '开始下载',
+                ),
               ),
               const SizedBox(height: 10),
               Row(

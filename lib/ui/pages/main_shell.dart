@@ -33,27 +33,41 @@ class _PageLoading extends StatelessWidget {
 class _MainShellState extends State<MainShell> {
   int _index = 0;
   final List<Widget?> _pages = List<Widget?>.filled(4, null);
+  final GlobalKey<ScaffoldState> _queueKey = GlobalKey<ScaffoldState>();
+  final GlobalKey<ScaffoldState> _completedKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
     super.initState();
-    _pages[0] = const QueuePage();
+    _pages[0] = QueuePage(scaffoldKey: _queueKey);
+  }
+
+  void _closeDrawers() {
+    _queueKey.currentState?.closeDrawer();
+    _completedKey.currentState?.closeDrawer();
   }
 
   Widget _pageFor(int index) => switch (index) {
-    1 => const CompletedPage(),
-    2 => const BrowserPage(),
+    1 => CompletedPage(scaffoldKey: _completedKey),
+    2 => BrowserPage(active: _index == 2),
     3 => const SettingsPage(),
-    _ => const QueuePage(),
+    _ => QueuePage(scaffoldKey: _queueKey),
   };
 
   void _select(int index) {
-    if (index == _index) return;
+    if (index == _index) {
+      _closeDrawers();
+      return;
+    }
     Haptics.select();
+    _closeDrawers();
     context.read<AppState>().clearSelection();
     FocusScope.of(context).unfocus();
     setState(() {
       _index = index;
+      if (_pages[2] != null && _pages[2] is BrowserPage) {
+        _pages[2] = BrowserPage(active: index == 2);
+      }
       if (_pages[index] == null) {
         // Paint the tab switch immediately, then build the (potentially heavy)
         // page on the next frame so the tap never feels frozen.

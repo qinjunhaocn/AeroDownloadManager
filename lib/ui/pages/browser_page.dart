@@ -10,9 +10,13 @@ import '../../utils/haptics.dart';
 import '../widgets/add_download_sheet.dart';
 
 class BrowserPage extends StatefulWidget {
-  const BrowserPage({super.key, this.initialUrl});
+  const BrowserPage({super.key, this.initialUrl, this.active = true});
 
   final String? initialUrl;
+
+  /// Whether the browser tab is the visible tab. Only the active browser may
+  /// intercept the system back gesture.
+  final bool active;
 
   @override
   State<BrowserPage> createState() => _BrowserPageState();
@@ -29,6 +33,8 @@ class _BrowserPageState extends State<BrowserPage> {
   String _currentUrl = '';
   bool _hasUrl = false;
   bool _creatingWebView = false;
+  bool _canGoBack = false;
+  bool _canGoForward = false;
   String _pendingUrl = '';
 
   @override
@@ -110,6 +116,59 @@ class _BrowserPageState extends State<BrowserPage> {
     await _controller?.loadUrl(urlRequest: URLRequest(url: WebUri(url)));
   }
 
+  Future<void> _refreshHistoryState() async {
+    final controller = _controller;
+    var back = false;
+    var forward = false;
+    if (controller != null) {
+      try {
+        back = await controller.canGoBack();
+        forward = await controller.canGoForward();
+      } catch (_) {
+        // WebView may be tearing down; treat as no history.
+      }
+    }
+    if (!mounted) return;
+    if (back != _canGoBack || forward != _canGoForward) {
+      setState(() {
+        _canGoBack = back;
+        _canGoForward = forward;
+      });
+    }
+  }
+
+  Future<void> _goBack() async {
+    if (!_canGoBack) return;
+    Haptics.select();
+    await _controller?.goBack();
+    await _refreshHistoryState();
+  }
+
+  Future<void> _goForward() async {
+    if (!_canGoForward) return;
+    Haptics.select();
+    await _controller?.goForward();
+    await _refreshHistoryState();
+  }
+
+  Future<void> _reload() async {
+    if (!_hasUrl) return;
+    Haptics.select();
+    await _controller?.reload();
+  }
+
+  Future<void> _openExternal() async {
+    Haptics.select();
+    final value = _normalize(_urlController.text);
+    if (value.isEmpty) return;
+    await launchUrl(Uri.parse(value), mode: LaunchMode.externalApplication);
+  }
+
+  void _clearAddress() {
+    Haptics.select();
+    _urlController.clear();
+  }
+
   Future<void> _currentPageUrl() async {
     if (!_webViewSupported) return;
     final controller = _controller;
@@ -128,7 +187,7 @@ class _BrowserPageState extends State<BrowserPage> {
           .showSnackBar(const SnackBar(content: Text('请先打开一个网页')));
       return;
     }
-    await showAddDownloadSheet(context, initialUrl: url);
+    await showAddDownloadSheet(context, initialUrl: url, forceDownload: true);
   }
 
   Future<void> _handleDownload(DownloadStartRequest request) async {
@@ -165,201 +224,183 @@ class _BrowserPageState extends State<BrowserPage> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Scaffold(
-      appBar: AppBar(
-        titleSpacing: 0,
-        title: Container(
-          height: 42,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          decoration: BoxDecoration(
-            color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(21),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                Icons.lock_outline_rounded,
-                size: 16,
-                color: scheme.onSurfaceVariant,
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: TextField(
-                  controller: _urlController,
-                  focusNode: _urlFocus,
-                  textInputAction: TextInputAction.go,
-                  style: Theme.of(context).textTheme.bodySmall,
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    filled: false,
-                    border: InputBorder.none,
-                    enabledBorder: InputBorder.none,
-                    focusedBorder: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
-                    hintText: '输入网址',
-                  ),
-                  onSubmitted: _go,
+    final interceptBack = widget.active && _canGoBack;
+    return PopScope(
+      canPop: !interceptBack,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (widget.active && _canGoBack) {
+          _goBack();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          titleSpacing: 0,
+          title: Container(
+            height: 42,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: scheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(21),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.lock_outline_rounded,
+                  size: 16,
+                  color: scheme.onSurfaceVariant,
                 ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          IconButton(
-            tooltip: '打开',
-            icon: const Icon(Icons.arrow_forward_rounded),
-            onPressed: () => _go(_urlController.text),
-          ),
-          PopupMenuButton<String>(
-            onOpened: Haptics.select,
-            onSelected: (value) async {
-              Haptics.select();
-              final home = context.read<AppState>().settings.browserHome;
-              switch (value) {
-                case 'home':
-                  await _go(home);
-                  break;
-                case 'external':
-                  final external = _normalize(_urlController.text);
-                  if (external.isNotEmpty) {
-                    await launchUrl(
-                      Uri.parse(external),
-                      mode: LaunchMode.externalApplication,
-                    );
-                  }
-                  break;
-                case 'download':
-                  await _addCurrentPage();
-                  break;
-                case 'clear':
-                  _urlController.clear();
-                  break;
-              }
-            },
-            itemBuilder: (context) => const [
-              PopupMenuItem(value: 'download', child: Text('将此页加入下载')),
-              PopupMenuItem(value: 'external', child: Text('用系统浏览器打开')),
-              PopupMenuItem(value: 'clear', child: Text('清空地址栏')),
-            ],
-          ),
-        ],
-        bottom: _loading
-            ? PreferredSize(
-                preferredSize: const Size.fromHeight(2),
-                child: LinearProgressIndicator(
-                  value: _progress <= 0 ? null : _progress,
-                  minHeight: 2,
-                ),
-              )
-            : null,
-      ),
-      body: _webViewSupported
-          ? (_hasUrl
-                ? InAppWebView(
-                    initialUrlRequest: URLRequest(url: WebUri(_pendingUrl)),
-                    initialSettings: InAppWebViewSettings(
-                      javaScriptEnabled: true,
-                      supportZoom: true,
-                      mediaPlaybackRequiresUserGesture: false,
-                      useHybridComposition: true,
-                      transparentBackground: false,
-                      allowFileAccess: false,
-                      allowContentAccess: false,
+                const SizedBox(width: 6),
+                Expanded(
+                  child: TextField(
+                    controller: _urlController,
+                    focusNode: _urlFocus,
+                    textInputAction: TextInputAction.go,
+                    style: Theme.of(context).textTheme.bodySmall,
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      filled: false,
+                      border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                      hintText: '输入网址',
                     ),
-                    onWebViewCreated: (controller) {
-                      _controller = controller;
-                    },
-                    onLoadStart: (controller, url) {
-                      setState(() {
-                        _loading = true;
-                        _progress = 0;
+                    onSubmitted: _go,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            IconButton(
+              tooltip: '打开',
+              icon: const Icon(Icons.arrow_forward_rounded),
+              onPressed: () => _go(_urlController.text),
+            ),
+            MenuAnchor(
+              consumeOutsideTap: false,
+              style: const MenuStyle(alignment: Alignment.bottomRight),
+              menuChildren: [
+                MenuItemButton(
+                  onPressed: _canGoBack ? _goBack : null,
+                  leadingIcon: const Icon(Icons.arrow_back_rounded),
+                  child: const Text('后退'),
+                ),
+                MenuItemButton(
+                  onPressed: _canGoForward ? _goForward : null,
+                  leadingIcon: const Icon(Icons.arrow_forward_rounded),
+                  child: const Text('前进'),
+                ),
+                MenuItemButton(
+                  onPressed: _hasUrl ? _reload : null,
+                  leadingIcon: const Icon(Icons.refresh_rounded),
+                  child: const Text('刷新'),
+                ),
+                const Divider(height: 1),
+                MenuItemButton(
+                  onPressed: _addCurrentPage,
+                  leadingIcon: const Icon(Icons.download_rounded),
+                  child: const Text('下载此页'),
+                ),
+                MenuItemButton(
+                  onPressed: _openExternal,
+                  leadingIcon: const Icon(Icons.open_in_browser_rounded),
+                  child: const Text('用系统浏览器打开'),
+                ),
+                MenuItemButton(
+                  onPressed: _clearAddress,
+                  leadingIcon: const Icon(Icons.clear_rounded),
+                  child: const Text('清空地址栏'),
+                ),
+              ],
+              builder: (context, controller, child) => IconButton(
+                tooltip: '更多',
+                icon: const Icon(Icons.more_vert_rounded),
+                onPressed: () {
+                  Haptics.select();
+                  controller.isOpen ? controller.close() : controller.open();
+                },
+              ),
+            ),
+          ],
+          bottom: _loading
+              ? PreferredSize(
+                  preferredSize: const Size.fromHeight(2),
+                  child: LinearProgressIndicator(
+                    value: _progress <= 0 ? null : _progress,
+                    minHeight: 2,
+                  ),
+                )
+              : null,
+        ),
+        body: _webViewSupported
+            ? (_hasUrl
+                  ? InAppWebView(
+                      initialUrlRequest: URLRequest(url: WebUri(_pendingUrl)),
+                      initialSettings: InAppWebViewSettings(
+                        javaScriptEnabled: true,
+                        supportZoom: true,
+                        mediaPlaybackRequiresUserGesture: false,
+                        useHybridComposition: true,
+                        transparentBackground: false,
+                        allowFileAccess: false,
+                        allowContentAccess: false,
+                      ),
+                      onWebViewCreated: (controller) {
+                        _controller = controller;
+                      },
+                      onLoadStart: (controller, url) {
+                        setState(() {
+                          _loading = true;
+                          _progress = 0;
+                          if (url != null) {
+                            _currentUrl = url.toString();
+                            _urlController.text = _currentUrl;
+                          }
+                        });
+                      },
+                      onProgressChanged: (controller, progress) {
+                        setState(() {
+                          _progress = progress / 100;
+                          _loading = progress < 100;
+                        });
+                      },
+                      onLoadStop: (controller, url) async {
+                        setState(() => _loading = false);
                         if (url != null) {
                           _currentUrl = url.toString();
                           _urlController.text = _currentUrl;
                         }
-                      });
-                    },
-                    onProgressChanged: (controller, progress) {
-                      setState(() {
-                        _progress = progress / 100;
-                        _loading = progress < 100;
-                      });
-                    },
-                    onLoadStop: (controller, url) async {
-                      setState(() => _loading = false);
-                      if (url != null) {
-                        _currentUrl = url.toString();
-                        _urlController.text = _currentUrl;
-                      }
-                    },
-                    onDownloadStartRequest: (controller, request) {
-                      _handleDownload(request);
-                    },
-                  )
-                : (_loading
-                      ? const Center(
-                          child: SizedBox(
-                            width: 28,
-                            height: 28,
-                            child: CircularProgressIndicator(strokeWidth: 2.5),
-                          ),
-                        )
-                      : const SizedBox.expand()))
-          : _DesktopFallback(
-              urlController: _urlController,
-              onGo: _go,
-              onAddDownload: () => showAddDownloadSheet(
-                context,
-                initialUrl: _urlController.text,
+                        await _refreshHistoryState();
+                      },
+                      onUpdateVisitedHistory: (controller, url, isReload) {
+                        _refreshHistoryState();
+                      },
+                      onDownloadStartRequest: (controller, request) {
+                        _handleDownload(request);
+                      },
+                    )
+                  : (_loading
+                        ? const Center(
+                            child: SizedBox(
+                              width: 28,
+                              height: 28,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                              ),
+                            ),
+                          )
+                        : const SizedBox.expand()))
+            : _DesktopFallback(
+                urlController: _urlController,
+                onGo: _go,
+                onAddDownload: () => showAddDownloadSheet(
+                  context,
+                  initialUrl: _urlController.text,
+                ),
               ),
-            ),
-      bottomNavigationBar: _webViewSupported && _hasUrl
-          ? BottomAppBar(
-              height: 58,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  IconButton(
-                    tooltip: '后退',
-                    onPressed: () {
-                      Haptics.select();
-                      _controller?.goBack();
-                    },
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                  ),
-                  IconButton(
-                    tooltip: '前进',
-                    onPressed: () {
-                      Haptics.select();
-                      _controller?.goForward();
-                    },
-                    icon: const Icon(Icons.arrow_forward_ios_rounded),
-                  ),
-                  IconButton(
-                    tooltip: '刷新',
-                    onPressed: () {
-                      Haptics.select();
-                      _controller?.reload();
-                    },
-                    icon: const Icon(Icons.refresh_rounded),
-                  ),
-                  IconButton(
-                    tooltip: '下载当前页',
-                    onPressed: _addCurrentPage,
-                    icon: const Icon(Icons.download_rounded),
-                  ),
-                  IconButton(
-                    tooltip: '用系统浏览器打开',
-                    onPressed: () => launchUrl(
-                      Uri.parse(_normalize(_urlController.text)),
-                      mode: LaunchMode.externalApplication,
-                    ),
-                    icon: const Icon(Icons.open_in_browser_rounded),
-                  ),
-                ],
-              ),
-            )
-          : null,
+      ),
     );
   }
 }

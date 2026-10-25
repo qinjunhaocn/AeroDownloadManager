@@ -12,7 +12,9 @@ import '../widgets/task_sort_button.dart';
 import '../widgets/task_tile.dart';
 
 class QueuePage extends StatefulWidget {
-  const QueuePage({super.key});
+  const QueuePage({super.key, this.scaffoldKey});
+
+  final GlobalKey<ScaffoldState>? scaffoldKey;
 
   @override
   State<QueuePage> createState() => _QueuePageState();
@@ -64,6 +66,7 @@ class _QueuePageState extends State<QueuePage> {
     final app = context.watch<AppState>();
     final tasks = app.queueTasks;
     return Scaffold(
+      key: widget.scaffoldKey,
       appBar: _buildAppBar(app),
       drawer: const AeroDrawer(),
       body: tasks.isEmpty
@@ -274,18 +277,35 @@ class _QueuePageState extends State<QueuePage> {
           icon: const Icon(Icons.search_rounded),
         ),
         TaskSortButton(app: app),
-        PopupMenuButton<String>(
-          tooltip: '更多',
-          onOpened: Haptics.select,
-          onSelected: (value) {
-            Haptics.tap();
-            if (value == 'start') app.manager.startAll();
-            if (value == 'pause') app.manager.pauseAll();
-          },
-          itemBuilder: (context) => const [
-            PopupMenuItem(value: 'start', child: Text('全部开始')),
-            PopupMenuItem(value: 'pause', child: Text('全部暂停')),
+        MenuAnchor(
+          consumeOutsideTap: false,
+          style: const MenuStyle(alignment: Alignment.bottomRight),
+          menuChildren: [
+            MenuItemButton(
+              onPressed: () {
+                Haptics.tap();
+                app.manager.startAll();
+              },
+              leadingIcon: const Icon(Icons.play_arrow_rounded),
+              child: const Text('全部开始'),
+            ),
+            MenuItemButton(
+              onPressed: () {
+                Haptics.tap();
+                app.manager.pauseAll();
+              },
+              leadingIcon: const Icon(Icons.pause_rounded),
+              child: const Text('全部暂停'),
+            ),
           ],
+          builder: (context, controller, child) => IconButton(
+            tooltip: '更多',
+            icon: const Icon(Icons.more_vert_rounded),
+            onPressed: () {
+              Haptics.select();
+              controller.isOpen ? controller.close() : controller.open();
+            },
+          ),
         ),
       ],
     );

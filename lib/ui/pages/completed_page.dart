@@ -11,7 +11,9 @@ import '../widgets/task_sort_button.dart';
 import '../widgets/task_tile.dart';
 
 class CompletedPage extends StatefulWidget {
-  const CompletedPage({super.key});
+  const CompletedPage({super.key, this.scaffoldKey});
+
+  final GlobalKey<ScaffoldState>? scaffoldKey;
 
   @override
   State<CompletedPage> createState() => _CompletedPageState();
@@ -32,6 +34,7 @@ class _CompletedPageState extends State<CompletedPage> {
     final app = context.watch<AppState>();
     final tasks = app.completedTasks;
     return Scaffold(
+      key: widget.scaffoldKey,
       appBar: _buildAppBar(app),
       drawer: const AeroDrawer(),
       body: tasks.isEmpty
