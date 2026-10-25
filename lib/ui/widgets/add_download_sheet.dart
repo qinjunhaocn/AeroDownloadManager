@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import '../../state/app_state.dart';
 import '../pages/editor_page.dart';
+import 'text_input_dialog.dart';
 
 Future<void> showAddDownloadSheet(BuildContext context, {String? initialUrl}) {
   return showModalBottomSheet<void>(
@@ -97,43 +98,27 @@ class _AddDownloadSheetState extends State<_AddDownloadSheet> {
   }
 
   Future<void> _addMagnet() async {
-    final controller = TextEditingController();
-    final value = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('添加磁力链接'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          minLines: 2,
-          maxLines: 6,
-          decoration: const InputDecoration(hintText: 'magnet:?xt=urn:btih:…'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('添加'),
-          ),
-        ],
-      ),
+    final value = await showAeroTextInputDialog(
+      context,
+      title: '添加磁力链接',
+      hint: 'magnet:?xt=urn:btih:…',
+      maxLines: 6,
+      confirmLabel: '添加',
     );
-    controller.dispose();
     if (value == null || value.isEmpty) return;
     if (!mounted) return;
     try {
       await context.read<AppState>().manager.addMagnet(url: value);
       if (!mounted) return;
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('磁力任务已加入，正在获取元数据')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('磁力任务已加入，正在获取元数据')),
+      );
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('$error')));
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$error')),
+      );
     }
   }
 

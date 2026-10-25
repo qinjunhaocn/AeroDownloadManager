@@ -9,6 +9,7 @@ import '../../core/engine/download_manager.dart';
 import '../../state/app_state.dart';
 import '../../utils/constants.dart';
 import '../../utils/formatters.dart';
+import '../widgets/text_input_dialog.dart';
 
 class SettingsPage extends StatelessWidget {
   const SettingsPage({super.key});
@@ -390,31 +391,13 @@ class SettingsPage extends StatelessWidget {
     required ValueChanged<String> onSaved,
     int maxLines = 1,
   }) async {
-    final controller = TextEditingController(text: initial);
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(title),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          minLines: 1,
-          maxLines: maxLines,
-          decoration: InputDecoration(hintText: hint),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('保存'),
-          ),
-        ],
-      ),
+    final result = await showAeroTextInputDialog(
+      context,
+      title: title,
+      initial: initial,
+      hint: hint,
+      maxLines: maxLines,
     );
-    controller.dispose();
     if (result != null) onSaved(result);
   }
 }

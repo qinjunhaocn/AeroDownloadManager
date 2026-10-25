@@ -71,7 +71,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: dev-${{ github.run_number }}
-          name: Aero dev build #${{ github.run_number }}
+          name: "Aero dev build #${{ github.run_number }}"
           prerelease: true
           generate_release_notes: true
           files: build/app/outputs/flutter-apk/app-debug.apk
