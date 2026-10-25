@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../state/app_state.dart';
+import '../../utils/haptics.dart';
 import '../widgets/add_download_sheet.dart';
 
 class BrowserPage extends StatefulWidget {
@@ -21,26 +22,49 @@ class _BrowserPageState extends State<BrowserPage> {
   static bool get _webViewSupported => Platform.isAndroid || Platform.isWindows;
 
   late final TextEditingController _urlController;
+  final FocusNode _urlFocus = FocusNode();
   InAppWebViewController? _controller;
   double _progress = 0;
   bool _loading = false;
   String _currentUrl = '';
+  bool _hasUrl = false;
+  bool _creatingWebView = false;
+  String _pendingUrl = '';
 
   @override
   void initState() {
     super.initState();
-    final state = context.read<AppState>();
-    final url =
-        widget.initialUrl ??
-        (state.settings.browserHome.isNotEmpty
-            ? state.settings.browserHome
-            : 'https://www.google.com');
-    _urlController = TextEditingController(text: url);
-    _currentUrl = url;
+    final initial = widget.initialUrl?.trim() ?? '';
+    _urlController = TextEditingController(text: initial);
+    if (initial.isNotEmpty) {
+      _pendingUrl = _normalize(initial);
+      _currentUrl = _pendingUrl;
+      _hasUrl = true;
+    }
+    _urlFocus.addListener(() {
+      if (_urlFocus.hasFocus) {
+        // Let the text field apply its own cursor placement first, then select
+        // the whole address (desktop browser behaviour).
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted && _urlFocus.hasFocus) _selectAllUrl();
+        });
+      }
+    });
+  }
+
+  /// Tapping the address bar selects everything, matching desktop browsers.
+  void _selectAllUrl() {
+    final text = _urlController.text;
+    if (text.isEmpty) return;
+    _urlController.selection = TextSelection(
+      baseOffset: 0,
+      extentOffset: text.length,
+    );
   }
 
   @override
   void dispose() {
+    _urlFocus.dispose();
     _urlController.dispose();
     super.dispose();
   }
@@ -55,14 +79,35 @@ class _BrowserPageState extends State<BrowserPage> {
   Future<void> _go(String input) async {
     final url = _normalize(input);
     if (url.isEmpty) return;
+    Haptics.select();
     _urlController.text = url;
+    _urlController.selection = TextSelection.collapsed(offset: url.length);
     if (!_webViewSupported) {
       await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
       return;
     }
-    final controller = _controller;
-    if (controller == null) return;
-    await controller.loadUrl(urlRequest: URLRequest(url: WebUri(url)));
+    if (!_hasUrl) {
+      if (_creatingWebView) return;
+      _creatingWebView = true;
+      setState(() {
+        _pendingUrl = url;
+        _currentUrl = url;
+        _loading = true;
+        _progress = 0;
+      });
+      // Let the loading state paint before the platform WebView is created;
+      // creating it synchronously on the tap frame is what made the first
+      // navigation feel like a freeze.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() {
+          _hasUrl = true;
+          _creatingWebView = false;
+        });
+      });
+      return;
+    }
+    await _controller?.loadUrl(urlRequest: URLRequest(url: WebUri(url)));
   }
 
   Future<void> _currentPageUrl() async {
@@ -74,10 +119,15 @@ class _BrowserPageState extends State<BrowserPage> {
   }
 
   Future<void> _addCurrentPage() async {
+    Haptics.tap();
     await _currentPageUrl();
     if (!mounted) return;
     final url = _currentUrl;
-    if (url.isEmpty) return;
+    if (url.isEmpty) {
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('请先打开一个网页')));
+      return;
+    }
     await showAddDownloadSheet(context, initialUrl: url);
   }
 
@@ -136,6 +186,7 @@ class _BrowserPageState extends State<BrowserPage> {
               Expanded(
                 child: TextField(
                   controller: _urlController,
+                  focusNode: _urlFocus,
                   textInputAction: TextInputAction.go,
                   style: Theme.of(context).textTheme.bodySmall,
                   decoration: const InputDecoration(
@@ -161,16 +212,20 @@ class _BrowserPageState extends State<BrowserPage> {
           ),
           PopupMenuButton<String>(
             onSelected: (value) async {
+              Haptics.select();
               final home = context.read<AppState>().settings.browserHome;
               switch (value) {
                 case 'home':
                   await _go(home);
                   break;
                 case 'external':
-                  await launchUrl(
-                    Uri.parse(_normalize(_urlController.text)),
-                    mode: LaunchMode.externalApplication,
-                  );
+                  final external = _normalize(_urlController.text);
+                  if (external.isNotEmpty) {
+                    await launchUrl(
+                      Uri.parse(external),
+                      mode: LaunchMode.externalApplication,
+                    );
+                  }
                   break;
                 case 'download':
                   await _addCurrentPage();
@@ -198,49 +253,57 @@ class _BrowserPageState extends State<BrowserPage> {
             : null,
       ),
       body: _webViewSupported
-          ? InAppWebView(
-              initialUrlRequest: URLRequest(
-                url: WebUri(_normalize(_urlController.text)),
-              ),
-              initialSettings: InAppWebViewSettings(
-                javaScriptEnabled: true,
-                supportZoom: true,
-                mediaPlaybackRequiresUserGesture: false,
-                useHybridComposition: true,
-                transparentBackground: false,
-                allowFileAccess: false,
-                allowContentAccess: false,
-              ),
-              onWebViewCreated: (controller) {
-                _controller = controller;
-              },
-              onLoadStart: (controller, url) {
-                setState(() {
-                  _loading = true;
-                  _progress = 0;
-                  if (url != null) {
-                    _currentUrl = url.toString();
-                    _urlController.text = _currentUrl;
-                  }
-                });
-              },
-              onProgressChanged: (controller, progress) {
-                setState(() {
-                  _progress = progress / 100;
-                  _loading = progress < 100;
-                });
-              },
-              onLoadStop: (controller, url) async {
-                setState(() => _loading = false);
-                if (url != null) {
-                  _currentUrl = url.toString();
-                  _urlController.text = _currentUrl;
-                }
-              },
-              onDownloadStartRequest: (controller, request) {
-                _handleDownload(request);
-              },
-            )
+          ? (_hasUrl
+                ? InAppWebView(
+                    initialUrlRequest: URLRequest(url: WebUri(_pendingUrl)),
+                    initialSettings: InAppWebViewSettings(
+                      javaScriptEnabled: true,
+                      supportZoom: true,
+                      mediaPlaybackRequiresUserGesture: false,
+                      useHybridComposition: true,
+                      transparentBackground: false,
+                      allowFileAccess: false,
+                      allowContentAccess: false,
+                    ),
+                    onWebViewCreated: (controller) {
+                      _controller = controller;
+                    },
+                    onLoadStart: (controller, url) {
+                      setState(() {
+                        _loading = true;
+                        _progress = 0;
+                        if (url != null) {
+                          _currentUrl = url.toString();
+                          _urlController.text = _currentUrl;
+                        }
+                      });
+                    },
+                    onProgressChanged: (controller, progress) {
+                      setState(() {
+                        _progress = progress / 100;
+                        _loading = progress < 100;
+                      });
+                    },
+                    onLoadStop: (controller, url) async {
+                      setState(() => _loading = false);
+                      if (url != null) {
+                        _currentUrl = url.toString();
+                        _urlController.text = _currentUrl;
+                      }
+                    },
+                    onDownloadStartRequest: (controller, request) {
+                      _handleDownload(request);
+                    },
+                  )
+                : (_loading
+                      ? const Center(
+                          child: SizedBox(
+                            width: 28,
+                            height: 28,
+                            child: CircularProgressIndicator(strokeWidth: 2.5),
+                          ),
+                        )
+                      : const SizedBox.expand()))
           : _DesktopFallback(
               urlController: _urlController,
               onGo: _go,
@@ -249,7 +312,7 @@ class _BrowserPageState extends State<BrowserPage> {
                 initialUrl: _urlController.text,
               ),
             ),
-      bottomNavigationBar: _webViewSupported
+      bottomNavigationBar: _webViewSupported && _hasUrl
           ? BottomAppBar(
               height: 58,
               child: Row(
@@ -257,17 +320,26 @@ class _BrowserPageState extends State<BrowserPage> {
                 children: [
                   IconButton(
                     tooltip: '后退',
-                    onPressed: () => _controller?.goBack(),
+                    onPressed: () {
+                      Haptics.select();
+                      _controller?.goBack();
+                    },
                     icon: const Icon(Icons.arrow_back_ios_new_rounded),
                   ),
                   IconButton(
                     tooltip: '前进',
-                    onPressed: () => _controller?.goForward(),
+                    onPressed: () {
+                      Haptics.select();
+                      _controller?.goForward();
+                    },
                     icon: const Icon(Icons.arrow_forward_ios_rounded),
                   ),
                   IconButton(
                     tooltip: '刷新',
-                    onPressed: () => _controller?.reload(),
+                    onPressed: () {
+                      Haptics.select();
+                      _controller?.reload();
+                    },
                     icon: const Icon(Icons.refresh_rounded),
                   ),
                   IconButton(

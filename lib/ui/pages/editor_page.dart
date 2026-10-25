@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../../core/models/download_task.dart';
 import '../../state/app_state.dart';
 import '../../utils/file_types.dart';
+import '../../utils/haptics.dart';
 import '../../utils/formatters.dart';
 
 class EditorPage extends StatefulWidget {
@@ -93,6 +94,7 @@ class _EditorPageState extends State<EditorPage> {
 
   Future<void> _save() async {
     if (_busy) return;
+    Haptics.tap();
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _busy = true);
     final app = context.read<AppState>();

@@ -83,8 +83,9 @@ class _AeroTextInputDialogState extends State<_AeroTextInputDialog> {
         minLines: 1,
         maxLines: widget.maxLines,
         keyboardType: widget.keyboardType,
-        textInputAction:
-            widget.maxLines > 1 ? TextInputAction.newline : TextInputAction.done,
+        textInputAction: widget.maxLines > 1
+            ? TextInputAction.newline
+            : TextInputAction.done,
         onSubmitted: widget.maxLines > 1 ? null : (_) => _submit(),
         decoration: InputDecoration(hintText: widget.hint),
       ),
@@ -93,10 +94,7 @@ class _AeroTextInputDialogState extends State<_AeroTextInputDialog> {
           onPressed: () => Navigator.of(context).pop(),
           child: Text(widget.cancelLabel),
         ),
-        FilledButton(
-          onPressed: _submit,
-          child: Text(widget.confirmLabel),
-        ),
+        FilledButton(onPressed: _submit, child: Text(widget.confirmLabel)),
       ],
     );
   }

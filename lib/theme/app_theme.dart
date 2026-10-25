@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-ThemeData buildAeroTheme(ColorScheme scheme) {
+ThemeData buildAeroTheme(ColorScheme scheme, {bool predictiveBack = false}) {
   final isDark = scheme.brightness == Brightness.dark;
   final base = ThemeData(
     useMaterial3: true,
@@ -10,6 +10,15 @@ ThemeData buildAeroTheme(ColorScheme scheme) {
   );
 
   return base.copyWith(
+    pageTransitionsTheme: PageTransitionsTheme(
+      builders: {
+        TargetPlatform.android: predictiveBack
+            ? const PredictiveBackPageTransitionsBuilder()
+            : const ZoomPageTransitionsBuilder(),
+        TargetPlatform.windows: const ZoomPageTransitionsBuilder(),
+        TargetPlatform.linux: const ZoomPageTransitionsBuilder(),
+      },
+    ),
     appBarTheme: AppBarThemeData(
       backgroundColor: scheme.surface,
       surfaceTintColor: Colors.transparent,

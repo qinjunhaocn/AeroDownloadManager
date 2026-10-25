@@ -7,7 +7,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/engine/download_manager.dart';
 import '../../state/app_state.dart';
+import '../../core/models/app_settings.dart';
 import '../../utils/constants.dart';
+import '../../utils/haptics.dart';
 import '../../utils/formatters.dart';
 import '../widgets/text_input_dialog.dart';
 
@@ -16,8 +18,8 @@ class SettingsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final state = context.watch<AppState>();
-    final settings = state.settings;
+    final state = context.read<AppState>();
+    final settings = context.select<AppState, AppSettings>((s) => s.settings);
     final scheme = Theme.of(context).colorScheme;
 
     return Scaffold(
@@ -83,6 +85,37 @@ class SettingsPage extends StatelessWidget {
               ),
             ],
           ),
+          if (Platform.isAndroid)
+            _SectionCard(
+              title: '交互',
+              icon: Icons.touch_app_outlined,
+              children: [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: settings.haptics,
+                  onChanged: (value) async {
+                    await state.updateSettings(
+                      settings.copyWith(haptics: value),
+                    );
+                    if (value) Haptics.tap();
+                  },
+                  title: const Text('触感反馈'),
+                  subtitle: const Text('点击、选择、删除等操作时振动'),
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  value: settings.predictiveBack,
+                  onChanged: (value) async {
+                    Haptics.select();
+                    await state.updateSettings(
+                      settings.copyWith(predictiveBack: value),
+                    );
+                  },
+                  title: const Text('预测性返回手势'),
+                  subtitle: const Text('Android 14+ 滑动返回时预览上一页；默认关闭'),
+                ),
+              ],
+            ),
           _SectionCard(
             title: '下载',
             icon: Icons.download_outlined,

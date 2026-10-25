@@ -157,9 +157,6 @@ class TaskTile extends StatelessWidget {
     } else {
       pieces.add(task.status.label);
     }
-    if (task.isActive && task.speed > 0) {
-      pieces.add(formatSpeed(task.speed));
-    }
     if (task.isActive && task.eta != null) {
       pieces.add('剩余 ${formatDuration(task.eta!.inMilliseconds)}');
     }

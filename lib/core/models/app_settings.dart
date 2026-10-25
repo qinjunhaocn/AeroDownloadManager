@@ -23,6 +23,8 @@ class AppSettings {
     this.autoRetry = true,
     this.preallocate = true,
     this.notifications = true,
+    this.haptics = true,
+    this.predictiveBack = false,
     this.clipboardWatch = false,
     this.confirmDelete = true,
     this.downloadDir = '',
@@ -53,6 +55,8 @@ class AppSettings {
   bool autoRetry;
   bool preallocate;
   bool notifications;
+  bool haptics;
+  bool predictiveBack;
   bool clipboardWatch;
   bool confirmDelete;
 
@@ -81,6 +85,8 @@ class AppSettings {
     bool? autoRetry,
     bool? preallocate,
     bool? notifications,
+    bool? haptics,
+    bool? predictiveBack,
     bool? clipboardWatch,
     bool? confirmDelete,
     String? downloadDir,
@@ -105,6 +111,8 @@ class AppSettings {
       autoRetry: autoRetry ?? this.autoRetry,
       preallocate: preallocate ?? this.preallocate,
       notifications: notifications ?? this.notifications,
+      haptics: haptics ?? this.haptics,
+      predictiveBack: predictiveBack ?? this.predictiveBack,
       clipboardWatch: clipboardWatch ?? this.clipboardWatch,
       confirmDelete: confirmDelete ?? this.confirmDelete,
       downloadDir: downloadDir ?? this.downloadDir,
@@ -168,6 +176,9 @@ class AppSettings {
     settings.preallocate = json['preallocate'] as bool? ?? settings.preallocate;
     settings.notifications =
         json['notifications'] as bool? ?? settings.notifications;
+    settings.haptics = json['haptics'] as bool? ?? settings.haptics;
+    settings.predictiveBack =
+        json['predictiveBack'] as bool? ?? settings.predictiveBack;
     settings.clipboardWatch =
         json['clipboardWatch'] as bool? ?? settings.clipboardWatch;
     settings.confirmDelete =

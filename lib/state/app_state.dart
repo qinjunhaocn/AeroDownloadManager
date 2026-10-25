@@ -13,8 +13,7 @@ import '../core/models/download_task.dart';
 import '../core/platform/native_bridge.dart';
 import '../core/platform/notifications.dart';
 import '../utils/file_types.dart';
-
-enum TaskFilter { all, active, queued, completed, error, torrents }
+import '../utils/haptics.dart';
 
 enum TaskSort { newest, oldest, name, size, progress }
 
@@ -27,7 +26,8 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   bool _initialized = false;
   bool get initialized => _initialized;
 
-  TaskFilter filter = TaskFilter.all;
+  Timer? _settingsSaveTimer;
+
   DownloadCategory? categoryFilter;
   TaskSort sort = TaskSort.newest;
   String searchQuery = '';
@@ -44,6 +44,7 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> init() async {
     WidgetsBinding.instance.addObserver(this);
     settings = await AppSettings.load();
+    Haptics.enabled = settings.haptics;
     _supportDirectory = await getApplicationSupportDirectory();
     final stateDir = Directory(p.join(_supportDirectory!.path, 'state'));
     final store = TaskStore(stateDir);
@@ -151,27 +152,22 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   // Filtering / selection
   // ---------------------------------------------------------------------------
 
-  List<DownloadTask> get visibleTasks {
+  /// Tasks shown on the Queue tab (not finished and not failed).
+  List<DownloadTask> get queueTasks => _filteredTasks(completed: false);
+
+  /// Finished or failed tasks shown on the Completed tab.
+  List<DownloadTask> get completedTasks => _filteredTasks(completed: true);
+
+  int get queueCount => queueTasks.length;
+
+  int get completedTaskCount => completedTasks.length;
+
+  List<DownloadTask> _filteredTasks({required bool completed}) {
     final list = manager.tasks.where((task) {
-      switch (filter) {
-        case TaskFilter.active:
-          if (!(task.status.occupiesSlot)) return false;
-          break;
-        case TaskFilter.queued:
-          if (task.status != TaskStatus.queued) return false;
-          break;
-        case TaskFilter.completed:
-          if (!task.isFinished) return false;
-          break;
-        case TaskFilter.error:
-          if (task.status != TaskStatus.error) return false;
-          break;
-        case TaskFilter.torrents:
-          if (!task.isTorrent) return false;
-          break;
-        case TaskFilter.all:
-          break;
-      }
+      final isCompleted =
+          task.status == TaskStatus.completed ||
+          task.status == TaskStatus.error;
+      if (isCompleted != completed) return false;
       if (categoryFilter != null && task.category != categoryFilter) {
         return false;
       }
@@ -207,32 +203,8 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     return list;
   }
 
-  int countFor(TaskFilter value) {
-    switch (value) {
-      case TaskFilter.all:
-        return manager.tasks.length;
-      case TaskFilter.active:
-        return manager.activeCount;
-      case TaskFilter.queued:
-        return manager.queuedCount;
-      case TaskFilter.completed:
-        return manager.completedCount;
-      case TaskFilter.error:
-        return manager.errorCount;
-      case TaskFilter.torrents:
-        return manager.tasks.where((t) => t.isTorrent).length;
-    }
-  }
-
-  void setFilter(TaskFilter value) {
-    filter = value;
-    categoryFilter = null;
-    notifyListeners();
-  }
-
   void setCategory(DownloadCategory? value) {
     categoryFilter = value;
-    filter = TaskFilter.all;
     notifyListeners();
   }
 
@@ -258,10 +230,10 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
-  void selectAll() {
+  void selectAll(Iterable<DownloadTask> tasks) {
     selectedIds
       ..clear()
-      ..addAll(visibleTasks.map((t) => t.id));
+      ..addAll(tasks.map((t) => t.id));
     notifyListeners();
   }
 
@@ -274,9 +246,20 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
 
   Future<void> updateSettings(AppSettings next) async {
     settings = next;
-    await settings.save();
-    manager.onSettingsChanged();
+    Haptics.enabled = next.haptics;
     notifyListeners();
+    manager.onSettingsChanged();
+    // Sliders fire dozens of updates per second; persist once the user pauses.
+    _settingsSaveTimer?.cancel();
+    _settingsSaveTimer = Timer(const Duration(milliseconds: 350), () {
+      unawaited(settings.save());
+    });
+  }
+
+  Future<void> flushSettings() async {
+    _settingsSaveTimer?.cancel();
+    _settingsSaveTimer = null;
+    await settings.save();
   }
 
   Future<void> setThemeMode(ThemeMode mode) async {
@@ -311,12 +294,14 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
         state == AppLifecycleState.inactive ||
         state == AppLifecycleState.detached) {
       unawaited(manager.persistNow());
+      unawaited(flushSettings());
     }
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _settingsSaveTimer?.cancel();
     manager.removeListener(notifyListeners);
     unawaited(manager.disposeManager());
     super.dispose();

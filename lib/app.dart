@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import 'state/app_state.dart';
 import 'theme/app_theme.dart';
 import 'theme/monet.dart';
-import 'ui/pages/home_page.dart';
+import 'ui/pages/main_shell.dart';
 import 'utils/constants.dart';
 
 class AeroApp extends StatefulWidget {
@@ -50,8 +50,8 @@ class _AeroAppState extends State<AeroApp> {
       title: kAppName,
       debugShowCheckedModeBanner: false,
       themeMode: settings.themeMode,
-      theme: buildAeroTheme(light),
-      darkTheme: buildAeroTheme(dark),
+      theme: buildAeroTheme(light, predictiveBack: settings.predictiveBack),
+      darkTheme: buildAeroTheme(dark, predictiveBack: settings.predictiveBack),
       themeAnimationDuration: const Duration(milliseconds: 250),
       locale: const Locale('zh', 'CN'),
       supportedLocales: const [Locale('zh', 'CN'), Locale('en', 'US')],
@@ -60,7 +60,7 @@ class _AeroAppState extends State<AeroApp> {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      home: const HomePage(),
+      home: const MainShell(),
     );
   }
 }

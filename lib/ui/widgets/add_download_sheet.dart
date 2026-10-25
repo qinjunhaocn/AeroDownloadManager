@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../state/app_state.dart';
+import '../../utils/haptics.dart';
 import '../pages/editor_page.dart';
 import 'text_input_dialog.dart';
 
@@ -27,6 +28,7 @@ class _AddDownloadSheet extends StatefulWidget {
 
 class _AddDownloadSheetState extends State<_AddDownloadSheet> {
   late final TextEditingController _urlController;
+  final FocusNode _urlFocus = FocusNode();
   final _formKey = GlobalKey<FormState>();
   bool _busy = false;
 
@@ -34,15 +36,20 @@ class _AddDownloadSheetState extends State<_AddDownloadSheet> {
   void initState() {
     super.initState();
     _urlController = TextEditingController(text: widget.initialUrl ?? '');
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _urlFocus.requestFocus();
+    });
   }
 
   @override
   void dispose() {
     _urlController.dispose();
+    _urlFocus.dispose();
     super.dispose();
   }
 
   Future<void> _paste() async {
+    Haptics.select();
     final data = await Clipboard.getData(Clipboard.kTextPlain);
     final text = data?.text?.trim();
     if (text == null || text.isEmpty) return;
@@ -54,6 +61,7 @@ class _AddDownloadSheetState extends State<_AddDownloadSheet> {
 
   Future<void> _start() async {
     if (_busy) return;
+    Haptics.tap();
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _busy = true);
     try {
@@ -77,6 +85,7 @@ class _AddDownloadSheetState extends State<_AddDownloadSheet> {
   }
 
   Future<void> _pickTorrent() async {
+    Haptics.tap();
     final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: const ['torrent'],
@@ -98,6 +107,7 @@ class _AddDownloadSheetState extends State<_AddDownloadSheet> {
   }
 
   Future<void> _addMagnet() async {
+    Haptics.tap();
     final value = await showAeroTextInputDialog(
       context,
       title: '添加磁力链接',
@@ -111,18 +121,17 @@ class _AddDownloadSheetState extends State<_AddDownloadSheet> {
       await context.read<AppState>().manager.addMagnet(url: value);
       if (!mounted) return;
       Navigator.of(context).pop();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('磁力任务已加入，正在获取元数据')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('磁力任务已加入，正在获取元数据')));
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('$error')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('$error')));
     }
   }
 
   void _advanced() {
+    Haptics.select();
     final url = _urlController.text.trim();
     final navigator = Navigator.of(context);
     navigator.pop();
@@ -159,6 +168,8 @@ class _AddDownloadSheetState extends State<_AddDownloadSheet> {
               const SizedBox(height: 16),
               TextFormField(
                 controller: _urlController,
+                focusNode: _urlFocus,
+                autofocus: true,
                 minLines: 1,
                 maxLines: 3,
                 keyboardType: TextInputType.url,
