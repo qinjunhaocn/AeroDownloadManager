@@ -28,7 +28,8 @@ class AppSettings {
     this.clipboardWatch = false,
     this.confirmDelete = true,
     this.downloadDir = '',
-    this.browserHome = 'https://www.google.com',
+    this.browserHome = 'https://www.bing.com',
+    this.searchEngine = 'bing',
     this.proxy = '',
     this.userAgent = kDefaultUserAgent,
   });
@@ -62,8 +63,11 @@ class AppSettings {
 
   String downloadDir;
   String browserHome;
+  String searchEngine;
   String proxy;
   String userAgent;
+
+  int settingsVersion = 1;
 
   int get minSegmentBytes => minSegmentKB * 1024;
   int get speedLimitBytesPerSecond => speedLimitKBps * 1024;
@@ -91,6 +95,7 @@ class AppSettings {
     bool? confirmDelete,
     String? downloadDir,
     String? browserHome,
+    String? searchEngine,
     String? proxy,
     String? userAgent,
   }) {
@@ -117,6 +122,7 @@ class AppSettings {
       confirmDelete: confirmDelete ?? this.confirmDelete,
       downloadDir: downloadDir ?? this.downloadDir,
       browserHome: browserHome ?? this.browserHome,
+      searchEngine: searchEngine ?? this.searchEngine,
       proxy: proxy ?? this.proxy,
       userAgent: userAgent ?? this.userAgent,
     );
@@ -143,6 +149,8 @@ class AppSettings {
     'confirmDelete': confirmDelete,
     'downloadDir': downloadDir,
     'browserHome': browserHome,
+    'searchEngine': searchEngine,
+    'settingsVersion': settingsVersion,
     'proxy': proxy,
     'userAgent': userAgent,
   };
@@ -187,6 +195,13 @@ class AppSettings {
         json['downloadDir'] as String? ?? settings.downloadDir;
     settings.browserHome =
         json['browserHome'] as String? ?? settings.browserHome;
+    final version = (json['settingsVersion'] as num?)?.toInt() ?? 0;
+    if (version < 1 && settings.browserHome == 'https://www.google.com') {
+      settings.browserHome = 'https://www.bing.com';
+    }
+    settings.settingsVersion = 1;
+    settings.searchEngine =
+        json['searchEngine'] as String? ?? settings.searchEngine;
     settings.proxy = json['proxy'] as String? ?? settings.proxy;
     settings.userAgent = json['userAgent'] as String? ?? settings.userAgent;
     return settings;

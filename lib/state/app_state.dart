@@ -39,6 +39,12 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
 
   final List<String> pendingIncomingUrls = [];
 
+  /// Requests a bottom-navigation tab switch; consumed by [MainShell].
+  int? pendingTab;
+
+  /// URL requested for the in-app browser; consumed by [BrowserPage].
+  String? pendingBrowserUrl;
+
   bool get selectionMode => selectedIds.isNotEmpty;
 
   Future<void> init() async {
@@ -122,6 +128,27 @@ class AppState extends ChangeNotifier with WidgetsBindingObserver {
   String? takeIncomingUrl() {
     if (pendingIncomingUrls.isEmpty) return null;
     return pendingIncomingUrls.removeAt(0);
+  }
+
+  void requestTab(int index) {
+    pendingTab = index;
+    notifyListeners();
+  }
+
+  void consumePendingTab() {
+    pendingTab = null;
+  }
+
+  void openInBrowser(String url) {
+    pendingBrowserUrl = url;
+    pendingTab = 2;
+    notifyListeners();
+  }
+
+  String? takePendingBrowserUrl() {
+    final url = pendingBrowserUrl;
+    pendingBrowserUrl = null;
+    return url;
   }
 
   Future<void> checkClipboard() async {

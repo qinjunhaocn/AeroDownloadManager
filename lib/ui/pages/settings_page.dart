@@ -10,6 +10,7 @@ import '../../state/app_state.dart';
 import '../../core/models/app_settings.dart';
 import '../../utils/constants.dart';
 import '../../utils/haptics.dart';
+import '../../utils/search_engines.dart';
 import '../../utils/formatters.dart';
 import '../widgets/text_input_dialog.dart';
 
@@ -363,6 +364,49 @@ class SettingsPage extends StatelessWidget {
             ],
           ),
           _SectionCard(
+            title: '浏览器',
+            icon: Icons.public_rounded,
+            children: [
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('默认主页'),
+                subtitle: Text(
+                  settings.browserHome.isEmpty
+                      ? 'https://www.bing.com'
+                      : settings.browserHome,
+                ),
+                trailing: const Icon(Icons.edit_outlined),
+                onTap: () => _editText(
+                  context,
+                  title: '浏览器默认主页',
+                  hint: 'https://www.bing.com',
+                  initial: settings.browserHome,
+                  onSaved: (value) {
+                    final normalized = value.trim().isEmpty
+                        ? 'https://www.bing.com'
+                        : normalizeUrlInput(value);
+                    state.updateSettings(
+                      settings.copyWith(browserHome: normalized),
+                    );
+                  },
+                ),
+              ),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('搜索引擎'),
+                subtitle: Text(SearchEngines.nameOf(settings.searchEngine)),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => _chooseSearchEngine(context, state, settings),
+              ),
+              Text(
+                '默认主页在应用启动时预加载；搜索引擎用于地址栏中非网址内容的搜索。',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+          _SectionCard(
             title: '存储',
             icon: Icons.storage_outlined,
             children: [
@@ -441,6 +485,47 @@ class SettingsPage extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  static Future<void> _chooseSearchEngine(
+    BuildContext context,
+    AppState state,
+    AppSettings settings,
+  ) async {
+    Haptics.select();
+    final selected = await showDialog<String>(
+      context: context,
+      builder: (context) => SimpleDialog(
+        title: const Text('搜索引擎'),
+        children: [
+          for (final engine in SearchEngines.all)
+            SimpleDialogOption(
+              onPressed: () {
+                Haptics.select();
+                Navigator.pop(context, engine.id);
+              },
+              child: Row(
+                children: [
+                  Icon(
+                    settings.searchEngine == engine.id
+                        ? Icons.check_circle_rounded
+                        : Icons.search_rounded,
+                    size: 20,
+                    color: settings.searchEngine == engine.id
+                        ? Theme.of(context).colorScheme.primary
+                        : null,
+                  ),
+                  const SizedBox(width: 12),
+                  Text(engine.name),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+    if (selected == null || !context.mounted) return;
+    Haptics.select();
+    await state.updateSettings(settings.copyWith(searchEngine: selected));
   }
 
   static Future<void> _editText(

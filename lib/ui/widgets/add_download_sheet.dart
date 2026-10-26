@@ -8,28 +8,48 @@ import 'package:provider/provider.dart';
 import '../../core/engine/link_inspector.dart';
 import '../../state/app_state.dart';
 import '../../utils/haptics.dart';
-import '../pages/browser_page.dart';
+import '../../utils/search_engines.dart';
 import '../pages/editor_page.dart';
-import 'text_input_dialog.dart';
 
 Future<void> showAddDownloadSheet(
   BuildContext context, {
   String? initialUrl,
+  String initialName = '',
+  String userAgent = '',
+  String referer = '',
+  String cookie = '',
   bool forceDownload = false,
 }) {
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (context) =>
-        _AddDownloadSheet(initialUrl: initialUrl, forceDownload: forceDownload),
+    builder: (context) => _AddDownloadSheet(
+      initialUrl: initialUrl,
+      initialName: initialName,
+      userAgent: userAgent,
+      referer: referer,
+      cookie: cookie,
+      forceDownload: forceDownload,
+    ),
   );
 }
 
 class _AddDownloadSheet extends StatefulWidget {
-  const _AddDownloadSheet({this.initialUrl, this.forceDownload = false});
+  const _AddDownloadSheet({
+    this.initialUrl,
+    this.initialName = '',
+    this.userAgent = '',
+    this.referer = '',
+    this.cookie = '',
+    this.forceDownload = false,
+  });
 
   final String? initialUrl;
+  final String initialName;
+  final String userAgent;
+  final String referer;
+  final String cookie;
   final bool forceDownload;
 
   @override
@@ -38,6 +58,7 @@ class _AddDownloadSheet extends StatefulWidget {
 
 class _AddDownloadSheetState extends State<_AddDownloadSheet> {
   late final TextEditingController _urlController;
+  late final TextEditingController _nameController;
   final FocusNode _urlFocus = FocusNode();
   final _formKey = GlobalKey<FormState>();
   bool _busy = false;
@@ -53,6 +74,7 @@ class _AddDownloadSheetState extends State<_AddDownloadSheet> {
   void initState() {
     super.initState();
     _urlController = TextEditingController(text: widget.initialUrl ?? '');
+    _nameController = TextEditingController(text: widget.initialName);
     _lastUrlText = _urlController.text;
     if (widget.forceDownload) {
       _linkKind = LinkKind.download;
@@ -72,6 +94,7 @@ class _AddDownloadSheetState extends State<_AddDownloadSheet> {
     _inspectDebounce?.cancel();
     _urlController.removeListener(_onUrlChanged);
     _urlController.dispose();
+    _nameController.dispose();
     _urlFocus.dispose();
     super.dispose();
   }
@@ -131,14 +154,24 @@ class _AddDownloadSheetState extends State<_AddDownloadSheet> {
   }
 
   void _openInBrowser() {
-    final value = _urlController.text.trim();
+    final value = normalizeUrlInput(_urlController.text);
     if (value.isEmpty) return;
     Haptics.tap();
-    final navigator = Navigator.of(context);
-    navigator.pop();
-    navigator.push(
-      MaterialPageRoute<void>(builder: (_) => BrowserPage(initialUrl: value)),
-    );
+    final app = context.read<AppState>();
+    Navigator.of(context).pop();
+    app.openInBrowser(value);
+  }
+
+  void _selectAllName() {
+    final text = _nameController.text;
+    if (text.isEmpty) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _nameController.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: text.length,
+      );
+    });
   }
 
   Future<void> _paste() async {
@@ -158,13 +191,19 @@ class _AddDownloadSheetState extends State<_AddDownloadSheet> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() => _busy = true);
     try {
-      final value = _urlController.text.trim();
+      final value = normalizeUrlInput(_urlController.text);
       if (value.toLowerCase().startsWith('magnet:')) {
         await context.read<AppState>().manager.addMagnet(url: value);
       } else if (_linkKind == LinkKind.torrent) {
         await context.read<AppState>().manager.addTorrentUrl(url: value);
       } else {
-        await context.read<AppState>().manager.addHttp(url: value);
+        await context.read<AppState>().manager.addHttp(
+          url: value,
+          name: _nameController.text.trim(),
+          userAgent: widget.userAgent,
+          referer: widget.referer,
+          cookie: widget.cookie,
+        );
       }
       if (!mounted) return;
       Navigator.of(context).pop();
@@ -201,33 +240,9 @@ class _AddDownloadSheetState extends State<_AddDownloadSheet> {
     }
   }
 
-  Future<void> _addMagnet() async {
-    Haptics.tap();
-    final value = await showAeroTextInputDialog(
-      context,
-      title: '添加磁力链接',
-      hint: 'magnet:?xt=urn:btih:…',
-      maxLines: 6,
-      confirmLabel: '添加',
-    );
-    if (value == null || value.isEmpty) return;
-    if (!mounted) return;
-    try {
-      await context.read<AppState>().manager.addMagnet(url: value);
-      if (!mounted) return;
-      Navigator.of(context).pop();
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('磁力任务已加入，正在获取元数据')));
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('$error')));
-    }
-  }
-
   void _advanced() {
     Haptics.select();
-    final url = _urlController.text.trim();
+    final url = normalizeUrlInput(_urlController.text);
     final navigator = Navigator.of(context);
     navigator.pop();
     navigator.push(
@@ -328,14 +343,30 @@ class _AddDownloadSheetState extends State<_AddDownloadSheet> {
                 validator: (value) {
                   final text = value?.trim() ?? '';
                   if (text.isEmpty) return '请输入链接';
-                  final lower = text.toLowerCase();
-                  if (!lower.startsWith('http://') &&
-                      !lower.startsWith('https://') &&
-                      !lower.startsWith('magnet:')) {
-                    return '仅支持 http(s) 或 magnet 链接';
+                  if (text.toLowerCase().startsWith('magnet:')) return null;
+                  if (text.contains(RegExp(r'\s'))) {
+                    return '请输入有效链接或域名';
+                  }
+                  final uri = Uri.tryParse(normalizeUrlInput(text));
+                  if (uri == null ||
+                      uri.host.isEmpty ||
+                      (uri.scheme != 'http' && uri.scheme != 'https')) {
+                    return '请输入有效链接或域名';
                   }
                   return null;
                 },
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: _nameController,
+                onTap: _selectAllName,
+                textInputAction: TextInputAction.next,
+                autocorrect: false,
+                decoration: const InputDecoration(
+                  labelText: '文件名（可选）',
+                  hintText: '留空则自动提取',
+                  prefixIcon: Icon(Icons.drive_file_rename_outline_rounded),
+                ),
               ),
               const SizedBox(height: 8),
               AnimatedSwitcher(
@@ -389,12 +420,6 @@ class _AddDownloadSheetState extends State<_AddDownloadSheet> {
                     ),
                   ),
                 ],
-              ),
-              const SizedBox(height: 8),
-              TextButton.icon(
-                onPressed: _addMagnet,
-                icon: const Icon(Icons.hub_outlined),
-                label: const Text('粘贴磁力链接'),
               ),
               const SizedBox(height: 6),
               Text(

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import '../../utils/file_types.dart';
+import '../../utils/search_engines.dart';
 import 'http_transport.dart';
 
 enum LinkKind { download, browser, torrent, unknown }
@@ -40,7 +41,7 @@ class LinkInspector {
     String userAgent = '',
     String proxy = '',
   }) async {
-    final value = input.trim();
+    final value = normalizeUrlInput(input);
     if (value.isEmpty) {
       return const LinkInspection(LinkKind.unknown, '请输入链接');
     }

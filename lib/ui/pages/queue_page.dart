@@ -88,7 +88,7 @@ class _QueuePageState extends State<QueuePage> {
                       Haptics.select();
                       app.toggleSelection(task.id);
                     } else {
-                      TaskActions.showDetails(context, app, task);
+                      TaskActions.primary(context, app, task);
                     }
                   },
                   onLongPress: () {
@@ -99,8 +99,6 @@ class _QueuePageState extends State<QueuePage> {
                     Haptics.select();
                     app.toggleSelection(task.id);
                   },
-                  onPrimaryAction: () =>
-                      TaskActions.primary(context, app, task),
                   onMenuSelected: (action) =>
                       _onMenuAction(context, app, task, action),
                 );

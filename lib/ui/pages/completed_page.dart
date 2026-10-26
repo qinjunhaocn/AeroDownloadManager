@@ -56,7 +56,7 @@ class _CompletedPageState extends State<CompletedPage> {
                       Haptics.select();
                       app.toggleSelection(task.id);
                     } else {
-                      TaskActions.showDetails(context, app, task);
+                      TaskActions.primary(context, app, task);
                     }
                   },
                   onLongPress: () {
@@ -67,8 +67,6 @@ class _CompletedPageState extends State<CompletedPage> {
                     Haptics.select();
                     app.toggleSelection(task.id);
                   },
-                  onPrimaryAction: () =>
-                      TaskActions.primary(context, app, task),
                   onMenuSelected: (action) =>
                       _onMenuAction(context, app, task, action),
                 );

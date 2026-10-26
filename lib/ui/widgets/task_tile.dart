@@ -14,7 +14,6 @@ class TaskTile extends StatelessWidget {
     required this.onTap,
     required this.onLongPress,
     required this.onToggleSelect,
-    required this.onPrimaryAction,
     required this.onMenuSelected,
   });
 
@@ -24,7 +23,6 @@ class TaskTile extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onLongPress;
   final VoidCallback onToggleSelect;
-  final VoidCallback onPrimaryAction;
   final void Function(String action) onMenuSelected;
 
   @override
@@ -36,7 +34,7 @@ class TaskTile extends StatelessWidget {
     final showIndeterminate = isActive && task.total <= 0 && !task.isTorrent;
 
     return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
       clipBehavior: Clip.antiAlias,
       color: selected
           ? scheme.primaryContainer.withValues(alpha: 0.55)
@@ -45,13 +43,13 @@ class TaskTile extends StatelessWidget {
         onTap: selectionMode ? onToggleSelect : onTap,
         onLongPress: onLongPress,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 12, 4, 12),
+          padding: const EdgeInsets.fromLTRB(10, 9, 2, 9),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               if (selectionMode)
                 Padding(
-                  padding: const EdgeInsets.only(right: 8, top: 4),
+                  padding: const EdgeInsets.only(right: 6),
                   child: Checkbox(
                     value: selected,
                     onChanged: (_) => onToggleSelect(),
@@ -59,7 +57,7 @@ class TaskTile extends StatelessWidget {
                   ),
                 ),
               _TypeAvatar(category: category, task: task),
-              const SizedBox(width: 12),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -75,26 +73,20 @@ class TaskTile extends StatelessWidget {
                                 ?.copyWith(fontWeight: FontWeight.w600),
                           ),
                         ),
-                        if (!selectionMode) ...[
-                          _trailingButton(context),
-                          _menu(context),
-                        ] else
-                          const SizedBox(width: 4),
+                        if (!selectionMode) _menu(context),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    _subtitle(context, statusColor),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 5),
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(6),
                       child: LinearProgressIndicator(
                         value: showIndeterminate ? null : task.progress,
-                        minHeight: 6,
+                        minHeight: 4,
                         backgroundColor: scheme.surfaceContainerHighest,
                         color: statusColor,
                       ),
                     ),
-                    const SizedBox(height: 5),
+                    const SizedBox(height: 4),
                     Row(
                       children: [
                         Text(
@@ -109,7 +101,7 @@ class TaskTile extends StatelessWidget {
                                 fontWeight: FontWeight.w600,
                               ),
                         ),
-                        const SizedBox(width: 10),
+                        const SizedBox(width: 8),
                         Expanded(
                           child: Text(
                             _metaLine(task),
@@ -121,6 +113,17 @@ class TaskTile extends StatelessWidget {
                         ),
                       ],
                     ),
+                    if (task.status == TaskStatus.error &&
+                        task.message.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        task.message,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.labelSmall
+                            ?.copyWith(color: scheme.error),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -148,86 +151,23 @@ class TaskTile extends StatelessWidget {
     }
   }
 
-  Widget _subtitle(BuildContext context, Color statusColor) {
-    final scheme = Theme.of(context).colorScheme;
-    final pieces = <String>[];
-    if (task.status == TaskStatus.error) {
-      pieces.add(task.message.isEmpty ? '下载出错' : task.message);
-    } else if (task.status == TaskStatus.waiting && task.message.isNotEmpty) {
-      pieces.add(task.message);
-    } else {
-      pieces.add(task.status.label);
-    }
-    if (task.isActive && task.eta != null) {
-      pieces.add('剩余 ${formatDuration(task.eta!.inMilliseconds)}');
-    }
-    final text = pieces.join(' · ');
-    return Text(
-      text,
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
-      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-        color: task.status == TaskStatus.error
-            ? scheme.error
-            : scheme.onSurfaceVariant,
-      ),
-    );
-  }
-
   String _metaLine(DownloadTask task) {
+    String base;
     if (task.isTorrent) {
       final size = task.total > 0 ? formatBytes(task.total) : '大小未知';
-      return '$size · ${task.peers} 节点 · ${task.seeders} 种子';
-    }
-    if (task.total > 0) {
+      base = '$size · ${task.peers} 节点 · ${task.seeders} 种子';
+    } else if (task.total > 0) {
       final threads = task.segments.isEmpty ? 0 : task.segments.length;
       final suffix = threads > 1 ? ' · $threads 线程' : '';
-      return '${formatBytes(task.downloaded)} / ${formatBytes(task.total)}$suffix';
+      base =
+          '${formatBytes(task.downloaded)} / ${formatBytes(task.total)}$suffix';
+    } else {
+      base = '${formatBytes(task.downloaded)} 已下载';
     }
-    return '${formatBytes(task.downloaded)} 已下载';
-  }
-
-  Widget _trailingButton(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    var icon = Icons.pause_rounded;
-    VoidCallback? callback = onPrimaryAction;
-    var tooltip = '暂停';
-    switch (task.status) {
-      case TaskStatus.completed:
-        icon = Icons.open_in_new_rounded;
-        callback = () => onMenuSelected('open');
-        tooltip = '打开文件';
-        break;
-      case TaskStatus.error:
-        icon = Icons.refresh_rounded;
-        callback = onPrimaryAction;
-        tooltip = '重试';
-        break;
-      case TaskStatus.paused:
-      case TaskStatus.queued:
-        icon = Icons.play_arrow_rounded;
-        callback = onPrimaryAction;
-        tooltip = '继续';
-        break;
-      case TaskStatus.waiting:
-        icon = Icons.pause_rounded;
-        callback = onPrimaryAction;
-        tooltip = '暂停';
-        break;
-      case TaskStatus.connecting:
-      case TaskStatus.downloading:
-        icon = Icons.pause_rounded;
-        callback = onPrimaryAction;
-        tooltip = '暂停';
-        break;
+    if (task.isActive && task.eta != null) {
+      base += ' · 剩余 ${formatDuration(task.eta!.inMilliseconds)}';
     }
-    return IconButton(
-      tooltip: tooltip,
-      iconSize: 20,
-      color: scheme.onSurfaceVariant,
-      onPressed: callback,
-      icon: Icon(icon),
-    );
+    return base;
   }
 
   Widget _menu(BuildContext context) {
@@ -289,7 +229,10 @@ class TaskTile extends StatelessWidget {
       ],
       builder: (context, controller, child) => IconButton(
         tooltip: '更多',
-        iconSize: 20,
+        iconSize: 18,
+        visualDensity: VisualDensity.compact,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
         icon: const Icon(Icons.more_vert_rounded),
         onPressed: () {
           Haptics.select();
@@ -311,11 +254,11 @@ class _TypeAvatar extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final color = task.isTorrent ? scheme.tertiary : category.color;
     return Container(
-      width: 44,
-      height: 44,
+      width: 38,
+      height: 38,
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.14),
-        borderRadius: BorderRadius.circular(13),
+        borderRadius: BorderRadius.circular(11),
       ),
       child: Icon(
         task.isTorrent
@@ -324,7 +267,7 @@ class _TypeAvatar extends StatelessWidget {
             ? Icons.downloading_rounded
             : category.icon,
         color: color,
-        size: 24,
+        size: 20,
       ),
     );
   }

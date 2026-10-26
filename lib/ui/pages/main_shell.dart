@@ -35,11 +35,41 @@ class _MainShellState extends State<MainShell> {
   final List<Widget?> _pages = List<Widget?>.filled(4, null);
   final GlobalKey<ScaffoldState> _queueKey = GlobalKey<ScaffoldState>();
   final GlobalKey<ScaffoldState> _completedKey = GlobalKey<ScaffoldState>();
+  AppState? _app;
 
   @override
   void initState() {
     super.initState();
     _pages[0] = QueuePage(scaffoldKey: _queueKey);
+    // Preload the browser tab so its configured home page is ready before the
+    // user switches to it.
+    _pages[2] = const BrowserPage(active: false);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final app = context.read<AppState>();
+    if (!identical(_app, app)) {
+      _app?.removeListener(_onAppStateChanged);
+      _app = app;
+      app.addListener(_onAppStateChanged);
+    }
+  }
+
+  void _onAppStateChanged() {
+    final app = _app;
+    if (app == null || !mounted) return;
+    final tab = app.pendingTab;
+    if (tab == null) return;
+    app.consumePendingTab();
+    _select(tab, clearSelection: false);
+  }
+
+  @override
+  void dispose() {
+    _app?.removeListener(_onAppStateChanged);
+    super.dispose();
   }
 
   void _closeDrawers() {
@@ -54,14 +84,16 @@ class _MainShellState extends State<MainShell> {
     _ => QueuePage(scaffoldKey: _queueKey),
   };
 
-  void _select(int index) {
+  void _select(int index, {bool clearSelection = true}) {
     if (index == _index) {
       _closeDrawers();
       return;
     }
     Haptics.select();
     _closeDrawers();
-    context.read<AppState>().clearSelection();
+    if (clearSelection) {
+      context.read<AppState>().clearSelection();
+    }
     FocusScope.of(context).unfocus();
     setState(() {
       _index = index;

@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../state/app_state.dart';
 import '../../utils/haptics.dart';
+import '../../utils/search_engines.dart';
 import '../widgets/add_download_sheet.dart';
 
 class BrowserPage extends StatefulWidget {
@@ -36,17 +37,23 @@ class _BrowserPageState extends State<BrowserPage> {
   bool _canGoBack = false;
   bool _canGoForward = false;
   String _pendingUrl = '';
+  AppState? _app;
 
   @override
   void initState() {
     super.initState();
+    final app = context.read<AppState>();
     final initial = widget.initialUrl?.trim() ?? '';
-    _urlController = TextEditingController(text: initial);
-    if (initial.isNotEmpty) {
-      _pendingUrl = _normalize(initial);
-      _currentUrl = _pendingUrl;
-      _hasUrl = true;
-    }
+    final configuredHome = app.settings.browserHome.trim();
+    final target = initial.isNotEmpty
+        ? initial
+        : (configuredHome.isNotEmpty ? configuredHome : 'https://www.bing.com');
+    final normalized = normalizeUrlInput(target);
+    _urlController = TextEditingController(text: normalized);
+    _pendingUrl = normalized;
+    _currentUrl = normalized;
+    _loading = normalized.isNotEmpty;
+    _creatingWebView = normalized.isNotEmpty;
     _urlFocus.addListener(() {
       if (_urlFocus.hasFocus) {
         // Let the text field apply its own cursor placement first, then select
@@ -55,6 +62,36 @@ class _BrowserPageState extends State<BrowserPage> {
           if (mounted && _urlFocus.hasFocus) _selectAllUrl();
         });
       }
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_creatingWebView) {
+        setState(() {
+          _hasUrl = true;
+          _creatingWebView = false;
+        });
+      }
+      final requested = _app?.takePendingBrowserUrl();
+      if (requested != null) _openRequested(requested);
+    });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final app = context.read<AppState>();
+    if (!identical(_app, app)) {
+      _app?.removeListener(_onAppStateChanged);
+      _app = app;
+      app.addListener(_onAppStateChanged);
+    }
+  }
+
+  void _onAppStateChanged() {
+    final url = _app?.takePendingBrowserUrl();
+    if (url == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _openRequested(url);
     });
   }
 
@@ -70,22 +107,35 @@ class _BrowserPageState extends State<BrowserPage> {
 
   @override
   void dispose() {
+    _app?.removeListener(_onAppStateChanged);
     _urlFocus.dispose();
     _urlController.dispose();
     super.dispose();
   }
 
-  String _normalize(String input) {
-    var value = input.trim();
-    if (value.isEmpty) return '';
-    if (!value.contains('://')) value = 'https://$value';
-    return value;
+  bool _looksLikeUrl(String value) {
+    if (value.contains(RegExp(r'\s'))) return false;
+    final candidate = Uri.tryParse('https://$value');
+    if (candidate == null || candidate.host.isEmpty) return false;
+    final host = candidate.host;
+    if (host == 'localhost') return true;
+    if (InternetAddress.tryParse(host) != null) return true;
+    return host.contains('.');
   }
 
-  Future<void> _go(String input) async {
-    final url = _normalize(input);
+  String _resolveInput(String input) {
+    final value = input.trim();
+    if (value.isEmpty) return '';
+    if (value.contains('://')) return value;
+    if (_looksLikeUrl(value)) return normalizeUrlInput(value);
+    final engine = context.read<AppState>().settings.searchEngine;
+    return SearchEngines.searchUrl(engine, value);
+  }
+
+  Future<void> _go(String input, {bool haptic = true}) async {
+    final url = _resolveInput(input);
     if (url.isEmpty) return;
-    Haptics.select();
+    if (haptic) Haptics.select();
     _urlController.text = url;
     _urlController.selection = TextSelection.collapsed(offset: url.length);
     if (!_webViewSupported) {
@@ -114,6 +164,32 @@ class _BrowserPageState extends State<BrowserPage> {
       return;
     }
     await _controller?.loadUrl(urlRequest: URLRequest(url: WebUri(url)));
+  }
+
+  void _openRequested(String url) {
+    final normalized = normalizeUrlInput(url);
+    if (normalized.isEmpty) return;
+    _urlController.text = normalized;
+    _currentUrl = normalized;
+    final controller = _controller;
+    if (controller != null && _hasUrl) {
+      controller.loadUrl(urlRequest: URLRequest(url: WebUri(normalized)));
+      return;
+    }
+    setState(() {
+      _pendingUrl = normalized;
+      _currentUrl = normalized;
+      _hasUrl = true;
+      _loading = true;
+      _progress = 0;
+      _creatingWebView = false;
+    });
+  }
+
+  Future<void> _goHome() async {
+    Haptics.select();
+    final home = context.read<AppState>().settings.browserHome.trim();
+    await _go(home.isEmpty ? 'https://www.bing.com' : home, haptic: false);
   }
 
   Future<void> _refreshHistoryState() async {
@@ -159,7 +235,9 @@ class _BrowserPageState extends State<BrowserPage> {
 
   Future<void> _openExternal() async {
     Haptics.select();
-    final value = _normalize(_urlController.text);
+    final value = _currentUrl.isNotEmpty
+        ? _currentUrl
+        : _resolveInput(_urlController.text);
     if (value.isEmpty) return;
     await launchUrl(Uri.parse(value), mode: LaunchMode.externalApplication);
   }
@@ -203,22 +281,20 @@ class _BrowserPageState extends State<BrowserPage> {
       // ignore
     }
     if (!mounted) return;
-    try {
-      await context.read<AppState>().manager.addHttp(
-        url: url,
-        name: request.suggestedFilename ?? '',
-        userAgent: request.userAgent ?? '',
-        referer: _currentUrl,
-        cookie: cookie,
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text('已从浏览器加入下载')));
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('$error')));
-    }
+    // Browser-initiated downloads should be reviewed in the Queue tab instead
+    // of being added silently.
+    context.read<AppState>().requestTab(0);
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted) return;
+    await showAddDownloadSheet(
+      context,
+      initialUrl: url,
+      initialName: request.suggestedFilename ?? '',
+      userAgent: request.userAgent ?? '',
+      referer: _currentUrl,
+      cookie: cookie,
+      forceDownload: true,
+    );
   }
 
   @override
@@ -282,6 +358,12 @@ class _BrowserPageState extends State<BrowserPage> {
               consumeOutsideTap: false,
               style: const MenuStyle(alignment: Alignment.bottomRight),
               menuChildren: [
+                MenuItemButton(
+                  onPressed: _goHome,
+                  leadingIcon: const Icon(Icons.home_outlined),
+                  child: const Text('主页'),
+                ),
+                const Divider(height: 1),
                 MenuItemButton(
                   onPressed: _canGoBack ? _goBack : null,
                   leadingIcon: const Icon(Icons.arrow_back_rounded),
