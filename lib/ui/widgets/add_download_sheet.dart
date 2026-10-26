@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/engine/link_inspector.dart';
+import '../../utils/file_types.dart';
 import '../../state/app_state.dart';
 import '../../utils/haptics.dart';
 import '../../utils/search_engines.dart';
@@ -69,6 +70,7 @@ class _AddDownloadSheetState extends State<_AddDownloadSheet> {
   Timer? _inspectDebounce;
   int _inspectSeq = 0;
   String _lastUrlText = '';
+  bool _nameEdited = false;
 
   @override
   void initState() {
@@ -76,6 +78,9 @@ class _AddDownloadSheetState extends State<_AddDownloadSheet> {
     _urlController = TextEditingController(text: widget.initialUrl ?? '');
     _nameController = TextEditingController(text: widget.initialName);
     _lastUrlText = _urlController.text;
+    if (widget.forceDownload && widget.initialName.isEmpty) {
+      _maybeFillName(widget.initialUrl ?? '');
+    }
     if (widget.forceDownload) {
       _linkKind = LinkKind.download;
     }
@@ -134,6 +139,9 @@ class _AddDownloadSheetState extends State<_AddDownloadSheet> {
         proxy: settings.proxy,
       );
       if (!mounted || seq != _inspectSeq) return;
+      if (result.kind != LinkKind.browser) {
+        _maybeFillName(text);
+      }
       setState(() {
         _checking = false;
         _linkKind = result.kind;
@@ -160,6 +168,19 @@ class _AddDownloadSheetState extends State<_AddDownloadSheet> {
     final app = context.read<AppState>();
     Navigator.of(context).pop();
     app.openInBrowser(value);
+  }
+
+  void _maybeFillName(String url) {
+    if (_nameEdited) return;
+    if (url.toLowerCase().startsWith('magnet:')) return;
+    final uri = Uri.tryParse(normalizeUrlInput(url));
+    if (uri == null) return;
+    final candidate = fileNameFromUrl(uri, fallback: '');
+    if (candidate.isEmpty || candidate == _nameController.text) return;
+    _nameController.text = candidate;
+    _nameController.selection = TextSelection.collapsed(
+      offset: candidate.length,
+    );
   }
 
   void _selectAllName() {
@@ -360,6 +381,7 @@ class _AddDownloadSheetState extends State<_AddDownloadSheet> {
               TextField(
                 controller: _nameController,
                 onTap: _selectAllName,
+                onChanged: (_) => _nameEdited = true,
                 textInputAction: TextInputAction.next,
                 autocorrect: false,
                 decoration: const InputDecoration(

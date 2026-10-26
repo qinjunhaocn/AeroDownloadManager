@@ -38,6 +38,7 @@ class _BrowserPageState extends State<BrowserPage> {
   bool _canGoForward = false;
   String _pendingUrl = '';
   AppState? _app;
+  String _homeUrl = '';
 
   @override
   void initState() {
@@ -45,6 +46,7 @@ class _BrowserPageState extends State<BrowserPage> {
     final app = context.read<AppState>();
     final initial = widget.initialUrl?.trim() ?? '';
     final configuredHome = app.settings.browserHome.trim();
+    _homeUrl = configuredHome;
     final target = initial.isNotEmpty
         ? initial
         : (configuredHome.isNotEmpty ? configuredHome : 'https://www.bing.com');
@@ -88,7 +90,18 @@ class _BrowserPageState extends State<BrowserPage> {
   }
 
   void _onAppStateChanged() {
-    final url = _app?.takePendingBrowserUrl();
+    final app = _app;
+    if (app == null) return;
+    final home = app.settings.browserHome.trim();
+    if (home.isNotEmpty && home != _homeUrl) {
+      _homeUrl = home;
+      // Applying a new default page from Settings updates the preloaded tab
+      // while it is in the background; don't interrupt an active page.
+      if (!widget.active) {
+        _openRequested(home);
+      }
+    }
+    final url = app.takePendingBrowserUrl();
     if (url == null) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) _openRequested(url);
