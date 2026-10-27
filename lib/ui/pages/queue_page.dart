@@ -69,41 +69,54 @@ class _QueuePageState extends State<QueuePage> {
       key: widget.scaffoldKey,
       appBar: _buildAppBar(app),
       drawer: const AeroDrawer(),
-      body: tasks.isEmpty
-          ? EmptyTasks(
-              icon: Icons.download_done_rounded,
-              title: _emptyTitle(app),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.only(top: 4, bottom: 96),
-              itemCount: tasks.length,
-              itemBuilder: (context, index) {
-                final task = tasks[index];
-                return TaskTile(
-                  task: task,
-                  selectionMode: app.selectionMode,
-                  selected: app.selectedIds.contains(task.id),
-                  onTap: () {
-                    if (app.selectionMode) {
+      body: AnimatedSwitcher(
+        duration: app.settings.animations
+            ? const Duration(milliseconds: 220)
+            : Duration.zero,
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        child: tasks.isEmpty
+            ? EmptyTasks(
+                key: ValueKey(
+                  'queue-empty-${app.categoryFilter}-${app.searchQuery.isNotEmpty}',
+                ),
+                icon: Icons.download_done_rounded,
+                title: _emptyTitle(app),
+              )
+            : ListView.builder(
+                key: ValueKey(
+                  'queue-list-${app.categoryFilter}-${app.searchQuery.isNotEmpty}',
+                ),
+                padding: const EdgeInsets.only(top: 4, bottom: 96),
+                itemCount: tasks.length,
+                itemBuilder: (context, index) {
+                  final task = tasks[index];
+                  return TaskTile(
+                    task: task,
+                    selectionMode: app.selectionMode,
+                    selected: app.selectedIds.contains(task.id),
+                    onTap: () {
+                      if (app.selectionMode) {
+                        Haptics.select();
+                        app.toggleSelection(task.id);
+                      } else {
+                        TaskActions.primary(context, app, task);
+                      }
+                    },
+                    onLongPress: () {
+                      Haptics.medium();
+                      app.toggleSelection(task.id);
+                    },
+                    onToggleSelect: () {
                       Haptics.select();
                       app.toggleSelection(task.id);
-                    } else {
-                      TaskActions.primary(context, app, task);
-                    }
-                  },
-                  onLongPress: () {
-                    Haptics.medium();
-                    app.toggleSelection(task.id);
-                  },
-                  onToggleSelect: () {
-                    Haptics.select();
-                    app.toggleSelection(task.id);
-                  },
-                  onMenuSelected: (action) =>
-                      _onMenuAction(context, app, task, action),
-                );
-              },
-            ),
+                    },
+                    onMenuSelected: (action) =>
+                        _onMenuAction(context, app, task, action),
+                  );
+                },
+              ),
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           Haptics.tap();

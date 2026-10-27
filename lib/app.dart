@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
+import 'core/models/app_settings.dart';
 import 'state/app_state.dart';
 import 'theme/app_theme.dart';
 import 'theme/monet.dart';
@@ -33,8 +34,9 @@ class _AeroAppState extends State<AeroApp> {
 
   @override
   Widget build(BuildContext context) {
-    final state = context.watch<AppState>();
-    final settings = state.settings;
+    final settings = context.select<AppState, AppSettings>(
+      (state) => state.settings,
+    );
     if (settings.monet && !MonetService.hasResult) {
       _maybeLoadMonet();
     }
@@ -50,9 +52,19 @@ class _AeroAppState extends State<AeroApp> {
       title: kAppName,
       debugShowCheckedModeBanner: false,
       themeMode: settings.themeMode,
-      theme: buildAeroTheme(light, predictiveBack: settings.predictiveBack),
-      darkTheme: buildAeroTheme(dark, predictiveBack: settings.predictiveBack),
-      themeAnimationDuration: const Duration(milliseconds: 250),
+      theme: buildAeroTheme(
+        light,
+        predictiveBack: settings.predictiveBack,
+        animations: settings.animations,
+      ),
+      darkTheme: buildAeroTheme(
+        dark,
+        predictiveBack: settings.predictiveBack,
+        animations: settings.animations,
+      ),
+      themeAnimationDuration: settings.animations
+          ? const Duration(milliseconds: 300)
+          : Duration.zero,
       locale: const Locale('zh', 'CN'),
       supportedLocales: const [Locale('zh', 'CN'), Locale('en', 'US')],
       localizationsDelegates: const [

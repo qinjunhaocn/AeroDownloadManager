@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../core/models/download_task.dart';
+import '../../state/app_state.dart';
 import '../../utils/file_types.dart';
 import '../../utils/formatters.dart';
 import '../../utils/haptics.dart';
@@ -32,6 +34,9 @@ class TaskTile extends StatelessWidget {
     final statusColor = _statusColor(scheme);
     final isActive = task.status.isActive;
     final showIndeterminate = isActive && task.total <= 0 && !task.isTorrent;
+    final animate = context.select<AppState, bool>(
+      (state) => state.settings.animations,
+    );
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
@@ -79,12 +84,29 @@ class TaskTile extends StatelessWidget {
                     const SizedBox(height: 5),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(6),
-                      child: LinearProgressIndicator(
-                        value: showIndeterminate ? null : task.progress,
-                        minHeight: 4,
-                        backgroundColor: scheme.surfaceContainerHighest,
-                        color: statusColor,
-                      ),
+                      child: showIndeterminate || !animate
+                          ? LinearProgressIndicator(
+                              value: showIndeterminate ? null : task.progress,
+                              minHeight: 4,
+                              backgroundColor: scheme.surfaceContainerHighest,
+                              color: statusColor,
+                            )
+                          : TweenAnimationBuilder<double>(
+                              tween: Tween<double>(
+                                begin: 0,
+                                end: task.progress.clamp(0.0, 1.0),
+                              ),
+                              duration: const Duration(milliseconds: 350),
+                              curve: Curves.easeOut,
+                              builder: (context, value, child) =>
+                                  LinearProgressIndicator(
+                                    value: value,
+                                    minHeight: 4,
+                                    backgroundColor:
+                                        scheme.surfaceContainerHighest,
+                                    color: statusColor,
+                                  ),
+                            ),
                     ),
                     const SizedBox(height: 4),
                     Row(

@@ -30,16 +30,23 @@ class _PageLoading extends StatelessWidget {
   }
 }
 
-class _MainShellState extends State<MainShell> {
+class _MainShellState extends State<MainShell>
+    with SingleTickerProviderStateMixin {
   int _index = 0;
   final List<Widget?> _pages = List<Widget?>.filled(4, null);
   final GlobalKey<ScaffoldState> _queueKey = GlobalKey<ScaffoldState>();
   final GlobalKey<ScaffoldState> _completedKey = GlobalKey<ScaffoldState>();
   AppState? _app;
+  late final AnimationController _tabFade;
 
   @override
   void initState() {
     super.initState();
+    _tabFade = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 180),
+      value: 1,
+    );
     _pages[0] = QueuePage(scaffoldKey: _queueKey);
     // Preload the browser tab so its configured home page is ready before the
     // user switches to it.
@@ -69,6 +76,7 @@ class _MainShellState extends State<MainShell> {
   @override
   void dispose() {
     _app?.removeListener(_onAppStateChanged);
+    _tabFade.dispose();
     super.dispose();
   }
 
@@ -91,6 +99,12 @@ class _MainShellState extends State<MainShell> {
     }
     Haptics.select();
     _closeDrawers();
+    final animations = context.read<AppState>().settings.animations;
+    if (animations) {
+      _tabFade.forward(from: 0);
+    } else {
+      _tabFade.value = 1;
+    }
     if (clearSelection) {
       context.read<AppState>().clearSelection();
     }
@@ -117,11 +131,14 @@ class _MainShellState extends State<MainShell> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: IndexedStack(
-        index: _index,
-        children: [
-          for (var i = 0; i < 4; i++) _pages[i] ?? const SizedBox.shrink(),
-        ],
+      body: FadeTransition(
+        opacity: _tabFade,
+        child: IndexedStack(
+          index: _index,
+          children: [
+            for (var i = 0; i < 4; i++) _pages[i] ?? const SizedBox.shrink(),
+          ],
+        ),
       ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,

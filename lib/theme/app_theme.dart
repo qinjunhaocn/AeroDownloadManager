@@ -1,22 +1,48 @@
 import 'package:flutter/material.dart';
 
-ThemeData buildAeroTheme(ColorScheme scheme, {bool predictiveBack = false}) {
+class _NoPageTransitionsBuilder extends PageTransitionsBuilder {
+  const _NoPageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    return child;
+  }
+}
+
+ThemeData buildAeroTheme(
+  ColorScheme scheme, {
+  bool predictiveBack = false,
+  bool animations = true,
+}) {
   final isDark = scheme.brightness == Brightness.dark;
   final base = ThemeData(
     useMaterial3: true,
     colorScheme: scheme,
     scaffoldBackgroundColor: scheme.surface,
     visualDensity: VisualDensity.standard,
+    splashFactory: animations ? null : NoSplash.splashFactory,
   );
 
   return base.copyWith(
     pageTransitionsTheme: PageTransitionsTheme(
       builders: {
-        TargetPlatform.android: predictiveBack
+        TargetPlatform.android: !animations
+            ? const _NoPageTransitionsBuilder()
+            : predictiveBack
             ? const PredictiveBackPageTransitionsBuilder()
-            : const ZoomPageTransitionsBuilder(),
-        TargetPlatform.windows: const ZoomPageTransitionsBuilder(),
-        TargetPlatform.linux: const ZoomPageTransitionsBuilder(),
+            : const FadeForwardsPageTransitionsBuilder(),
+        TargetPlatform.windows: animations
+            ? const FadeForwardsPageTransitionsBuilder()
+            : const _NoPageTransitionsBuilder(),
+        TargetPlatform.linux: animations
+            ? const FadeForwardsPageTransitionsBuilder()
+            : const _NoPageTransitionsBuilder(),
       },
     ),
     appBarTheme: AppBarThemeData(

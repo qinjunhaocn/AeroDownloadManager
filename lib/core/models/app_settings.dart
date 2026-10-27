@@ -25,6 +25,9 @@ class AppSettings {
     this.notifications = true,
     this.haptics = true,
     this.predictiveBack = false,
+    this.animations = true,
+    this.blur = true,
+    this.blurSigma = 12.0,
     this.clipboardWatch = false,
     this.confirmDelete = true,
     this.downloadDir = '',
@@ -58,6 +61,9 @@ class AppSettings {
   bool notifications;
   bool haptics;
   bool predictiveBack;
+  bool animations;
+  bool blur;
+  double blurSigma;
   bool clipboardWatch;
   bool confirmDelete;
 
@@ -91,6 +97,9 @@ class AppSettings {
     bool? notifications,
     bool? haptics,
     bool? predictiveBack,
+    bool? animations,
+    bool? blur,
+    double? blurSigma,
     bool? clipboardWatch,
     bool? confirmDelete,
     String? downloadDir,
@@ -118,6 +127,9 @@ class AppSettings {
       notifications: notifications ?? this.notifications,
       haptics: haptics ?? this.haptics,
       predictiveBack: predictiveBack ?? this.predictiveBack,
+      animations: animations ?? this.animations,
+      blur: blur ?? this.blur,
+      blurSigma: blurSigma ?? this.blurSigma,
       clipboardWatch: clipboardWatch ?? this.clipboardWatch,
       confirmDelete: confirmDelete ?? this.confirmDelete,
       downloadDir: downloadDir ?? this.downloadDir,
@@ -187,6 +199,10 @@ class AppSettings {
     settings.haptics = json['haptics'] as bool? ?? settings.haptics;
     settings.predictiveBack =
         json['predictiveBack'] as bool? ?? settings.predictiveBack;
+    settings.animations = json['animations'] as bool? ?? settings.animations;
+    settings.blur = json['blur'] as bool? ?? settings.blur;
+    settings.blurSigma =
+        (json['blurSigma'] as num?)?.toDouble() ?? settings.blurSigma;
     settings.clipboardWatch =
         json['clipboardWatch'] as bool? ?? settings.clipboardWatch;
     settings.confirmDelete =

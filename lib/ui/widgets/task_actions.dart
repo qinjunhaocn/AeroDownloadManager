@@ -8,6 +8,7 @@ import '../../core/platform/file_opener.dart';
 import '../../state/app_state.dart';
 import '../../utils/haptics.dart';
 import '../pages/editor_page.dart';
+import 'glass_surface.dart';
 import 'task_details_sheet.dart';
 
 /// Shared task actions used by both the Queue and Completed tabs.
@@ -150,42 +151,47 @@ class TaskActions {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => TaskDetailsSheet(
-        task: task,
-        onOpen: () => openFile(context, task),
-        onFolder: () => openFolder(context, task),
-        onCopy: () => copyUrl(context, task),
-        onEdit: task.isTorrent || task.isFinished
-            ? null
-            : () async {
-                Haptics.select();
-                navigator.pop();
-                if (task.status.isActive) await app.manager.pause(task);
-                if (!context.mounted) return;
-                await navigator.push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => EditorPage(task: task),
-                  ),
-                );
-              },
-        onToggle: () async {
-          Haptics.tap();
-          navigator.pop();
-          if (task.status.isActive) {
-            await app.manager.pause(task);
-          } else {
-            app.manager.start(task);
-          }
-        },
-        onRetry: () async {
-          Haptics.tap();
-          navigator.pop();
-          await app.manager.retry(task);
-        },
-        onDelete: () async {
-          navigator.pop();
-          await delete(context, app, task);
-        },
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      builder: (_) => GlassSurface(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        child: TaskDetailsSheet(
+          task: task,
+          onOpen: () => openFile(context, task),
+          onFolder: () => openFolder(context, task),
+          onCopy: () => copyUrl(context, task),
+          onEdit: task.isTorrent || task.isFinished
+              ? null
+              : () async {
+                  Haptics.select();
+                  navigator.pop();
+                  if (task.status.isActive) await app.manager.pause(task);
+                  if (!context.mounted) return;
+                  await navigator.push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => EditorPage(task: task),
+                    ),
+                  );
+                },
+          onToggle: () async {
+            Haptics.tap();
+            navigator.pop();
+            if (task.status.isActive) {
+              await app.manager.pause(task);
+            } else {
+              app.manager.start(task);
+            }
+          },
+          onRetry: () async {
+            Haptics.tap();
+            navigator.pop();
+            await app.manager.retry(task);
+          },
+          onDelete: () async {
+            navigator.pop();
+            await delete(context, app, task);
+          },
+        ),
       ),
     );
   }

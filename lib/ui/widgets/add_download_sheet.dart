@@ -11,6 +11,7 @@ import '../../state/app_state.dart';
 import '../../utils/haptics.dart';
 import '../../utils/search_engines.dart';
 import '../pages/editor_page.dart';
+import 'glass_surface.dart';
 
 Future<void> showAddDownloadSheet(
   BuildContext context, {
@@ -25,13 +26,18 @@ Future<void> showAddDownloadSheet(
     context: context,
     isScrollControlled: true,
     useSafeArea: true,
-    builder: (context) => _AddDownloadSheet(
-      initialUrl: initialUrl,
-      initialName: initialName,
-      userAgent: userAgent,
-      referer: referer,
-      cookie: cookie,
-      forceDownload: forceDownload,
+    backgroundColor: Colors.transparent,
+    elevation: 0,
+    builder: (context) => GlassSurface(
+      borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      child: _AddDownloadSheet(
+        initialUrl: initialUrl,
+        initialName: initialName,
+        userAgent: userAgent,
+        referer: referer,
+        cookie: cookie,
+        forceDownload: forceDownload,
+      ),
     ),
   );
 }

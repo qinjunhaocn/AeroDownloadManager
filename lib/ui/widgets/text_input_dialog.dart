@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../utils/haptics.dart';
+import 'glass_surface.dart';
 
 /// Shows a single-field dialog whose [TextEditingController] is owned by the
 /// dialog route itself.
@@ -21,14 +22,17 @@ Future<String?> showAeroTextInputDialog(
 }) {
   return showDialog<String>(
     context: context,
-    builder: (_) => _AeroTextInputDialog(
-      title: title,
-      initial: initial,
-      hint: hint,
-      maxLines: maxLines,
-      confirmLabel: confirmLabel,
-      cancelLabel: cancelLabel,
-      keyboardType: keyboardType,
+    builder: (_) => GlassSurface(
+      borderRadius: BorderRadius.circular(28),
+      child: _AeroTextInputDialog(
+        title: title,
+        initial: initial,
+        hint: hint,
+        maxLines: maxLines,
+        confirmLabel: confirmLabel,
+        cancelLabel: cancelLabel,
+        keyboardType: keyboardType,
+      ),
     ),
   );
 }
@@ -79,6 +83,9 @@ class _AeroTextInputDialogState extends State<_AeroTextInputDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
+      backgroundColor: Colors.transparent,
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
       title: Text(widget.title),
       content: TextField(
         controller: _controller,
