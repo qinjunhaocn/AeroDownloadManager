@@ -382,6 +382,7 @@ class _EditorPageState extends State<EditorPage> {
                 Row(
                   children: [
                     MenuAnchor(
+                      animated: settings.animations,
                       consumeOutsideTap: false,
                       style: const MenuStyle(alignment: Alignment.bottomLeft),
                       menuChildren: [

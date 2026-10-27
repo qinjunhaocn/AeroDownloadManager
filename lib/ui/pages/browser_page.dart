@@ -313,6 +313,9 @@ class _BrowserPageState extends State<BrowserPage> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final animations = context.select<AppState, bool>(
+      (state) => state.settings.animations,
+    );
     final interceptBack = widget.active && _canGoBack;
     return PopScope(
       canPop: !interceptBack,
@@ -368,6 +371,7 @@ class _BrowserPageState extends State<BrowserPage> {
               onPressed: () => _go(_urlController.text),
             ),
             MenuAnchor(
+              animated: animations,
               consumeOutsideTap: false,
               style: const MenuStyle(alignment: Alignment.bottomRight),
               menuChildren: [

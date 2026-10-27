@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/models/app_settings.dart';
 import '../../../state/app_state.dart';
@@ -182,12 +183,19 @@ class SettingsColorDot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final animations = context.select<AppState, bool>(
+      (state) => state.settings.animations,
+    );
+    final duration = animations
+        ? const Duration(milliseconds: 200)
+        : Duration.zero;
     return Tooltip(
       message: name,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(24),
-        child: Container(
+        child: AnimatedContainer(
+          duration: duration,
           width: 40,
           height: 40,
           decoration: BoxDecoration(
@@ -200,9 +208,17 @@ class SettingsColorDot extends StatelessWidget {
               width: 2.5,
             ),
           ),
-          child: selected
-              ? const Icon(Icons.check, size: 20, color: Colors.white)
-              : null,
+          child: AnimatedSwitcher(
+            duration: duration,
+            child: selected
+                ? const Icon(
+                    Icons.check,
+                    key: ValueKey('selected'),
+                    size: 20,
+                    color: Colors.white,
+                  )
+                : const SizedBox(key: ValueKey('unselected')),
+          ),
         ),
       ),
     );

@@ -7,6 +7,7 @@ import 'state/app_state.dart';
 import 'theme/app_theme.dart';
 import 'theme/monet.dart';
 import 'ui/pages/main_shell.dart';
+import 'ui/widgets/aero_wallpaper.dart';
 import 'utils/constants.dart';
 
 class AeroApp extends StatefulWidget {
@@ -56,12 +57,14 @@ class _AeroAppState extends State<AeroApp> {
         light,
         predictiveBack: settings.predictiveBack,
         animations: settings.animations,
-      ),
+        blur: settings.blur,
+      ).copyWith(scaffoldBackgroundColor: Colors.transparent),
       darkTheme: buildAeroTheme(
         dark,
         predictiveBack: settings.predictiveBack,
         animations: settings.animations,
-      ),
+        blur: settings.blur,
+      ).copyWith(scaffoldBackgroundColor: Colors.transparent),
       themeAnimationDuration: settings.animations
           ? const Duration(milliseconds: 300)
           : Duration.zero,
@@ -72,6 +75,20 @@ class _AeroAppState extends State<AeroApp> {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
+      builder: (context, child) => Stack(
+        alignment: Alignment.topLeft,
+        fit: StackFit.expand,
+        children: [
+          RepaintBoundary(
+            child: AeroWallpaper(
+              animations: settings.animations,
+              blur: settings.blur,
+              sigma: settings.blurSigma,
+            ),
+          ),
+          child ?? const SizedBox.shrink(),
+        ],
+      ),
       home: const MainShell(),
     );
   }

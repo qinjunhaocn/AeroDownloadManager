@@ -29,6 +29,7 @@ class TaskSortButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MenuAnchor(
+      animated: app.settings.animations,
       consumeOutsideTap: false,
       style: const MenuStyle(alignment: Alignment.bottomRight),
       menuChildren: [

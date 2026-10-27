@@ -35,7 +35,7 @@ class _CompletedPageState extends State<CompletedPage> {
     final tasks = app.completedTasks;
     return Scaffold(
       key: widget.scaffoldKey,
-      appBar: _buildAppBar(app),
+      appBar: _animatedAppBar(app),
       drawer: const AeroDrawer(),
       body: AnimatedSwitcher(
         duration: app.settings.animations
@@ -117,9 +117,36 @@ class _CompletedPageState extends State<CompletedPage> {
     }
   }
 
+  PreferredSizeWidget _animatedAppBar(AppState app) {
+    return PreferredSize(
+      preferredSize: Size.fromHeight(
+        kToolbarHeight + MediaQuery.paddingOf(context).top,
+      ),
+      child: AnimatedSwitcher(
+        duration: app.settings.animations
+            ? const Duration(milliseconds: 220)
+            : Duration.zero,
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder: (child, animation) {
+          final slide = Tween<Offset>(
+            begin: const Offset(0, -0.08),
+            end: Offset.zero,
+          ).animate(animation);
+          return FadeTransition(
+            opacity: animation,
+            child: SlideTransition(position: slide, child: child),
+          );
+        },
+        child: _buildAppBar(app),
+      ),
+    );
+  }
+
   PreferredSizeWidget _buildAppBar(AppState app) {
     if (app.selectionMode) {
       return AppBar(
+        key: const ValueKey('completed-selection'),
         leading: IconButton(
           tooltip: '取消选择',
           icon: const Icon(Icons.close_rounded),
@@ -147,6 +174,7 @@ class _CompletedPageState extends State<CompletedPage> {
 
     if (_searching) {
       return AppBar(
+        key: const ValueKey('completed-search'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_rounded),
           onPressed: () {
@@ -183,6 +211,7 @@ class _CompletedPageState extends State<CompletedPage> {
     }
 
     return AppBar(
+      key: const ValueKey('completed-normal'),
       leading: Builder(
         builder: (context) => IconButton(
           tooltip: '菜单',
