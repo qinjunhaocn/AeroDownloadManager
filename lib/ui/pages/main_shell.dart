@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../../core/models/app_settings.dart';
 import '../../state/app_state.dart';
 import '../../utils/haptics.dart';
-import '../widgets/glass_surface.dart';
 import 'browser_page.dart';
 import 'completed_page.dart';
 import 'queue_page.dart';
@@ -132,7 +130,6 @@ class _MainShellState extends State<MainShell>
 
   @override
   Widget build(BuildContext context) {
-    context.select<AppState, AppSettings>((state) => state.settings);
     return Scaffold(
       body: FadeTransition(
         opacity: _tabFade,
@@ -143,36 +140,31 @@ class _MainShellState extends State<MainShell>
           ],
         ),
       ),
-      bottomNavigationBar: GlassSurface(
-        child: NavigationBar(
-          backgroundColor: Colors.transparent,
-          surfaceTintColor: Colors.transparent,
-          elevation: 0,
-          selectedIndex: _index,
-          onDestinationSelected: _select,
-          destinations: const [
-            NavigationDestination(
-              icon: Icon(Icons.download_outlined),
-              selectedIcon: Icon(Icons.download_rounded),
-              label: '队列',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.check_circle_outline_rounded),
-              selectedIcon: Icon(Icons.check_circle_rounded),
-              label: '已完成',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.public_outlined),
-              selectedIcon: Icon(Icons.public_rounded),
-              label: '浏览器',
-            ),
-            NavigationDestination(
-              icon: Icon(Icons.settings_outlined),
-              selectedIcon: Icon(Icons.settings_rounded),
-              label: '设置',
-            ),
-          ],
-        ),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _index,
+        onDestinationSelected: _select,
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.download_outlined),
+            selectedIcon: Icon(Icons.download_rounded),
+            label: '队列',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.check_circle_outline_rounded),
+            selectedIcon: Icon(Icons.check_circle_rounded),
+            label: '已完成',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.public_outlined),
+            selectedIcon: Icon(Icons.public_rounded),
+            label: '浏览器',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.settings_outlined),
+            selectedIcon: Icon(Icons.settings_rounded),
+            label: '设置',
+          ),
+        ],
       ),
     );
   }

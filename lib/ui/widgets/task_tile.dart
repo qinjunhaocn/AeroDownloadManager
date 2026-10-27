@@ -37,14 +37,13 @@ class TaskTile extends StatelessWidget {
     final animate = context.select<AppState, bool>(
       (state) => state.settings.animations,
     );
-    final blur = context.select<AppState, bool>((state) => state.settings.blur);
 
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 3),
       clipBehavior: Clip.antiAlias,
       color: selected
           ? scheme.primaryContainer.withValues(alpha: 0.55)
-          : scheme.surfaceContainerLow.withValues(alpha: blur ? 0.88 : 1),
+          : scheme.surfaceContainerLow,
       child: InkWell(
         onTap: selectionMode ? onToggleSelect : onTap,
         onLongPress: onLongPress,

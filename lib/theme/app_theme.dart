@@ -19,7 +19,6 @@ ThemeData buildAeroTheme(
   ColorScheme scheme, {
   bool predictiveBack = false,
   bool animations = true,
-  bool blur = true,
 }) {
   final isDark = scheme.brightness == Brightness.dark;
   final base = ThemeData(
@@ -47,9 +46,7 @@ ThemeData buildAeroTheme(
       },
     ),
     appBarTheme: AppBarThemeData(
-      backgroundColor: blur
-          ? scheme.surface.withValues(alpha: 0.82)
-          : scheme.surface,
+      backgroundColor: scheme.surface,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
       scrolledUnderElevation: 1,
@@ -62,9 +59,7 @@ ThemeData buildAeroTheme(
     ),
     cardTheme: CardThemeData(
       elevation: 0,
-      color: blur
-          ? scheme.surfaceContainerLow.withValues(alpha: 0.90)
-          : scheme.surfaceContainerLow,
+      color: scheme.surfaceContainerLow,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       margin: EdgeInsets.zero,

@@ -85,8 +85,8 @@ class AppearanceSettingsPage extends StatelessWidget {
             ],
           ),
           SettingsSectionCard(
-            title: '视觉效果',
-            icon: Icons.auto_awesome_rounded,
+            title: '动效',
+            icon: Icons.animation_rounded,
             children: [
               SwitchListTile(
                 contentPadding: EdgeInsets.zero,
@@ -96,38 +96,7 @@ class AppearanceSettingsPage extends StatelessWidget {
                   state.updateSettings(settings.copyWith(animations: value));
                 },
                 title: const Text('界面动画'),
-                subtitle: const Text('页面切换、主题过渡与界面微动效'),
-              ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                value: settings.blur,
-                onChanged: (value) {
-                  Haptics.select();
-                  state.updateSettings(settings.copyWith(blur: value));
-                },
-                title: const Text('高斯模糊'),
-                subtitle: const Text('抽屉、下载弹层与详情面板使用毛玻璃效果'),
-              ),
-              IgnorePointer(
-                ignoring: !settings.blur,
-                child: AnimatedOpacity(
-                  opacity: settings.blur ? 1 : 0.4,
-                  duration: settings.animations
-                      ? const Duration(milliseconds: 200)
-                      : Duration.zero,
-                  child: SettingsSliderTile(
-                    title: '模糊强度',
-                    subtitle: '数值越大，背景越模糊',
-                    value: settings.blurSigma,
-                    min: 2,
-                    max: 40,
-                    divisions: 19,
-                    valueText: '${settings.blurSigma.round()}',
-                    onChanged: (value) => state.updateSettings(
-                      settings.copyWith(blurSigma: value),
-                    ),
-                  ),
-                ),
+                subtitle: const Text('页面切换、菜单、搜索与进度过渡动画'),
               ),
             ],
           ),
